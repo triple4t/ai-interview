@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>WebSocket Test</title>
+</head>
+<body>
+    <h1>WebSocket Face Detection Test</h1>
+    <div id="status">Connecting...</div>
+    <div id="messages"></div>
+    
+    <script>
+        const statusDiv = document.getElementById('status');
+        const messagesDiv = document.getElementById('messages');
+        
+        function addMessage(message) {
+            const div = document.createElement('div');
+            div.textContent = new Date().toLocaleTimeString() + ': ' + message;
+            messagesDiv.appendChild(div);
+        }
+        
+        try {
+            const wsUrl = 'ws://localhost:8000/api/v1/face-detection/ws/browser_test';
+            addMessage('Attempting to connect to: ' + wsUrl);
+            
+            const ws = new WebSocket(wsUrl);
+            
+            ws.onopen = function(event) {
+                statusDiv.textContent = 'Connected!';
+                statusDiv.style.color = 'green';
+                addMessage('WebSocket connection opened');
+            };
+            
+            ws.onmessage = function(event) {
+                try {
+                    const data = JSON.parse(event.data);
+                    addMessage('Received: ' + data.type);
+                    if (data.data && data.data.analysis) {
+                        addMessage('Face detected: ' + data.data.analysis.face_detected);
+                        addMessage('Emotion: ' + (data.data.analysis.emotion || 'N/A'));
+                    }
+                } catch (e) {
+                    addMessage('Error parsing message: ' + e.message);
+                }
+            };
+            
+            ws.onerror = function(error) {
+                statusDiv.textContent = 'Error!';
+                statusDiv.style.color = 'red';
+                addMessage('WebSocket error: ' + JSON.stringify(error));
+                console.error('WebSocket error:', error);
+            };
+            
+            ws.onclose = function(event) {
+                statusDiv.textContent = 'Disconnected';
+                statusDiv.style.color = 'orange';
+                addMessage('WebSocket connection closed: ' + event.code + ' - ' + event.reason);
+            };
+            
+        } catch (error) {
+            statusDiv.textContent = 'Failed to create WebSocket';
+            statusDiv.style.color = 'red';
+            addMessage('Error creating WebSocket: ' + error.message);
+        }
+    </script>
+</body>
+</html> 
