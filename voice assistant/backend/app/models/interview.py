@@ -17,5 +17,6 @@ class InterviewResult(Base):
     strengths = Column(JSON)  # Store as JSON array
     areas_for_improvement = Column(JSON)  # Store as JSON array
     recommendations = Column(JSON)  # Store as JSON array
+    transcript = Column(JSON)  # Store conversation transcript as JSON
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now()) 

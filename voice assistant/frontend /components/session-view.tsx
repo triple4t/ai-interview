@@ -55,6 +55,7 @@ export const SessionView = ({
   const { state: agentState } = useVoiceAssistant();
   const [chatOpen, setChatOpen] = useState(false);
   const [faceDetectionActive, setFaceDetectionActive] = useState(false);
+  const [faceAnalysisData, setFaceAnalysisData] = useState<any>({});
   const { messages, send } = useChatAndTranscription();
   const room = useRoomContext();
   const router = useRouter();
@@ -62,6 +63,7 @@ export const SessionView = ({
   // Add ref to prevent infinite cycling
   const hasStartedFaceDetection = React.useRef(false);
   const hasEndedInterview = React.useRef(false);
+  const faceDetectionRef = React.useRef<{ forceDisconnect: () => void }>(null);
 
   // Start face detection automatically when session starts
   useEffect(() => {
@@ -81,10 +83,9 @@ export const SessionView = ({
       const normalizedMsg = latestAgentMessage.message?.toLowerCase().replace(/[^a-z0-9 ]/gi, '').trim() || '';
       const endRegex = /(have a great day|thank)/i;
       if (endRegex.test(normalizedMsg) && faceDetectionActive) {
-        console.log('🛑 Stopping face detection - interview ended');
-        setFaceDetectionActive(false);
-        hasStartedFaceDetection.current = false; // Reset the ref
+        console.log('🛑 Interview ended - but keeping face detection active until user ends call');
         hasEndedInterview.current = true; // Mark that interview has ended
+        // Don't stop face detection here - let user end it manually
       }
     }
   }, [messages, faceDetectionActive]);
@@ -213,11 +214,13 @@ export const SessionView = ({
   // Handler for End Call button
   async function handleEndCall() {
     console.log('🔄 End Call button clicked - starting navigation to result page');
-    // Stop face detection immediately
-    if (faceDetectionActive) {
-      console.log('🛑 Stopping face detection');
-      setFaceDetectionActive(false);
+
+    // Force disconnect face detection immediately
+    if (faceDetectionRef.current) {
+      console.log('🛑 Force disconnecting face detection');
+      faceDetectionRef.current.forceDisconnect();
     }
+    setFaceDetectionActive(false);
 
     // Immediately set hasNavigated to prevent automatic navigation
     setHasNavigated(true);
@@ -292,11 +295,12 @@ export const SessionView = ({
     ) {
       console.log('🤖 AI detected end of interview - starting automatic navigation');
 
-      // Stop face detection immediately
-      if (faceDetectionActive) {
-        console.log('🛑 Stopping face detection');
-        setFaceDetectionActive(false);
+      // Force disconnect face detection immediately
+      if (faceDetectionRef.current) {
+        console.log('🛑 Force disconnecting face detection');
+        faceDetectionRef.current.forceDisconnect();
       }
+      setFaceDetectionActive(false);
 
       setHasNavigated(true);
       setIsProcessingInterview(true);
@@ -335,6 +339,7 @@ export const SessionView = ({
       // Extract Q&A pairs from messages - only the 3 actual interview questions
       let questionCount = 0;
       const maxQuestions = 3;
+      const questionAnswerPairs: { question: string; answer: string }[] = [];
 
       for (let i = 0; i < messages.length && questionCount < maxQuestions; i++) {
         const msg = messages[i];
@@ -352,19 +357,26 @@ export const SessionView = ({
           if (!isGreeting && !isAcknowledgement && !isClosing && !isInstruction) {
             const question = msg.message;
             console.log(`🎯 Found question ${questionCount + 1}:`, question);
-            questions.push(question);
             questionCount++;
 
             // Look for the next user message as the answer
+            let foundAnswer = false;
             for (let j = i + 1; j < messages.length; j++) {
               const nextMsg = messages[j];
               if (nextMsg.from?.isLocal) {
                 // This is a user message (answer)
                 const answer = nextMsg.message;
                 console.log(`💬 Found answer for question ${questionCount}:`, answer);
-                answers.push(answer);
+                questionAnswerPairs.push({ question, answer });
+                foundAnswer = true;
                 break;
               }
+            }
+
+            // If no answer found, add empty answer
+            if (!foundAnswer) {
+              console.log(`⚠️ No answer found for question ${questionCount}`);
+              questionAnswerPairs.push({ question, answer: 'No answer provided' });
             }
           } else {
             console.log(`⏭️ Skipping message (${messageContent.substring(0, 50)}...) - not a question`);
@@ -372,14 +384,19 @@ export const SessionView = ({
         }
       }
 
+      // Extract questions and answers from pairs
+      const extractedQuestions = questionAnswerPairs.map(pair => pair.question);
+      const extractedAnswers = questionAnswerPairs.map(pair => pair.answer);
+
+      // Update the original arrays
+      questions.length = 0;
+      answers.length = 0;
+      questions.push(...extractedQuestions);
+      answers.push(...extractedAnswers);
+
       console.log(`📝 Extracted ${questions.length} questions and ${answers.length} answers`);
       console.log('Questions:', questions);
       console.log('Answers:', answers);
-
-      // Ensure we have the same number of questions and answers
-      while (answers.length < questions.length) {
-        answers.push('No answer provided');
-      }
 
       // Generate session ID
       const sessionId = `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
@@ -401,9 +418,23 @@ export const SessionView = ({
 
       if (response.ok) {
         const result = await response.json();
-        // Store the result in localStorage for the result page
-        localStorage.setItem('interviewResult', JSON.stringify(result));
-        console.log('✅ Interview evaluation completed:', result);
+        
+        // Enhance result with face and voice analysis data
+        const enhancedResult = {
+          ...result,
+          face_analysis: faceAnalysisData,
+          voice_analysis: {
+            speaking: true, // Assume speaking during interview
+            confidence: 0.7, // Default confidence
+            nervousness: 0.3, // Default nervousness
+            speech_patterns: ["Interview speech detected"]
+          }
+        };
+        
+        // Store the enhanced result in localStorage for the result page
+        localStorage.setItem('interviewResult', JSON.stringify(enhancedResult));
+
+        console.log('✅ Interview evaluation completed with enhanced analysis:', enhancedResult);
       } else {
         console.error('❌ Failed to evaluate interview:', response.statusText);
         const errorText = await response.text();
@@ -556,9 +587,11 @@ export const SessionView = ({
 
       {/* Face Detection Panel */}
       <FaceDetectionPanel
+        ref={faceDetectionRef}
         isActive={faceDetectionActive}
         onToggle={() => setFaceDetectionActive(false)}
         shouldStartCamera={faceDetectionActive}
+        onAnalysisDataChange={setFaceAnalysisData}
       />
 
       {/* Agent Control Bar - Fixed at bottom */}

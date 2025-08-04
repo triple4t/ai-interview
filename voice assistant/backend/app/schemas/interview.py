@@ -25,6 +25,7 @@ class InterviewResultResponse(BaseModel):
     strengths: List[str]
     areas_for_improvement: List[str]
     recommendations: List[str]
+    transcript: Optional[List[Dict[str, Any]]] = None
     created_at: datetime
     updated_at: datetime
 

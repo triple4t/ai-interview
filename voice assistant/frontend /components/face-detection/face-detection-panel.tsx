@@ -16,6 +16,33 @@ interface AnalysisData {
   attention_score?: number;
   engagement_level?: string;
   recommendations?: string[];
+  suspicious_behavior?: string[];
+  // Enhanced features
+  eye_tracking?: {
+    eye_state?: string;
+    eye_tracking?: string;
+    eye_aspect_ratio?: number;
+    screen_distance?: number;
+  };
+  head_pose?: {
+    looking_at_screen?: boolean;
+    head_pose?: string;
+    gaze_distance?: number;
+  };
+  multiple_faces?: {
+    face_count?: number;
+    multiple_faces_detected?: boolean;
+  };
+  screen_sharing?: {
+    screen_sharing_detected?: boolean;
+    time_since_last_activity?: number;
+  };
+  voice_analysis?: {
+    speaking?: boolean;
+    confidence?: number;
+    nervousness?: number;
+    speech_patterns?: string[];
+  };
 }
 
 interface FaceDetectionPanelProps {
@@ -23,14 +50,16 @@ interface FaceDetectionPanelProps {
   onToggle: () => void;
   className?: string;
   shouldStartCamera?: boolean; // New prop to control when camera should start
+  onAnalysisDataChange?: (data: AnalysisData) => void; // New prop to pass analysis data to parent
 }
 
-export const FaceDetectionPanel: React.FC<FaceDetectionPanelProps> = ({
+export const FaceDetectionPanel = React.forwardRef<{ forceDisconnect: () => void }, FaceDetectionPanelProps>(({
   isActive,
   onToggle,
   className = "",
-  shouldStartCamera = false
-}) => {
+  shouldStartCamera = false,
+  onAnalysisDataChange
+}, ref) => {
   const [isConnected, setIsConnected] = useState(false);
   const [analysisData, setAnalysisData] = useState<AnalysisData>({});
   const [videoFrame, setVideoFrame] = useState<string | null>(null);
@@ -39,6 +68,7 @@ export const FaceDetectionPanel: React.FC<FaceDetectionPanelProps> = ({
   const [cameraStarted, setCameraStarted] = useState(false);
   const [isConnecting, setIsConnecting] = useState(false);
   const [debouncedIsActive, setDebouncedIsActive] = useState(false);
+  const [shouldDisconnect, setShouldDisconnect] = useState(false); // New state to control disconnection
 
   const wsRef = useRef<WebSocket | null>(null);
   const clientId = useRef(`client_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`);
@@ -64,6 +94,18 @@ export const FaceDetectionPanel: React.FC<FaceDetectionPanelProps> = ({
     };
   }, [isActive]);
 
+  // Function to explicitly disconnect (called from parent)
+  const forceDisconnect = () => {
+    console.log('🛑 Force disconnecting face detection');
+    setShouldDisconnect(true);
+    disconnectWebSocket();
+  };
+
+  // Expose forceDisconnect to parent component
+  React.useImperativeHandle(ref, () => ({
+    forceDisconnect
+  }));
+
   const connectWebSocket = () => {
     if (isConnecting || isConnected) {
       console.log('🔄 Already connecting or connected, skipping connection attempt');
@@ -85,7 +127,13 @@ export const FaceDetectionPanel: React.FC<FaceDetectionPanelProps> = ({
           const data = JSON.parse(event.data);
           if (data.type === 'video_frame') {
             setVideoFrame(data.data.image);
-            setAnalysisData(data.data.analysis || {});
+            const newAnalysisData = data.data.analysis || {};
+            setAnalysisData(newAnalysisData);
+            
+            // Pass analysis data to parent component
+            if (onAnalysisDataChange) {
+              onAnalysisDataChange(newAnalysisData);
+            }
           } else if (data.type === 'connected') {
             console.log('✅ Face detection service connected:', data.data.message);
             // Don't start camera immediately - wait for shouldStartCamera prop
@@ -246,8 +294,9 @@ export const FaceDetectionPanel: React.FC<FaceDetectionPanelProps> = ({
   }, [shouldStartCamera, isConnected, cameraStarted]);
 
   // Effect to handle WebSocket connection based on isActive
+  // Only disconnect if explicitly told to do so (shouldDisconnect is true)
   useEffect(() => {
-    if (debouncedIsActive && !isConnected && !isConnecting && !isLoading) {
+    if (debouncedIsActive && !isConnected && !isConnecting && !isLoading && !shouldDisconnect) {
       console.log('🔄 Activating face detection...');
       setIsLoading(true);
 
@@ -255,21 +304,22 @@ export const FaceDetectionPanel: React.FC<FaceDetectionPanelProps> = ({
       setTimeout(() => {
         connectWebSocket();
       }, 100);
-    } else if (!debouncedIsActive && isConnected) {
-      console.log('🛑 Deactivating face detection...');
+    } else if (shouldDisconnect && isConnected) {
+      console.log('🛑 Force disconnecting face detection...');
       disconnectWebSocket();
+      setShouldDisconnect(false); // Reset the flag
     }
 
     return () => {
-      if (!debouncedIsActive) {
+      if (shouldDisconnect) {
         disconnectWebSocket();
       }
     };
-  }, [debouncedIsActive, isConnected, isConnecting, isLoading]);
+  }, [debouncedIsActive, isConnected, isConnecting, isLoading, shouldDisconnect]);
 
   // Add a retry mechanism for failed connections
   useEffect(() => {
-    if (debouncedIsActive && !isConnected && !isConnecting && error && retryCountRef.current < maxRetries) {
+    if (debouncedIsActive && !isConnected && !isConnecting && error && retryCountRef.current < maxRetries && !shouldDisconnect) {
       console.log(`🔄 Retrying connection after error (attempt ${retryCountRef.current + 1}/${maxRetries})...`);
       
       // Clear error and retry after 2 seconds
@@ -283,15 +333,15 @@ export const FaceDetectionPanel: React.FC<FaceDetectionPanelProps> = ({
       console.log('❌ Max retries reached, giving up on face detection connection');
       setError('Failed to connect after multiple attempts. Please refresh the page.');
     }
-  }, [debouncedIsActive, isConnected, isConnecting, error]);
+  }, [debouncedIsActive, isConnected, isConnecting, error, shouldDisconnect]);
 
-  // Prevent rapid reconnection attempts
+  // Prevent rapid reconnection attempts - only if not explicitly disconnecting
   useEffect(() => {
-    if (!debouncedIsActive && isConnected) {
+    if (!debouncedIsActive && isConnected && !shouldDisconnect) {
       console.log('🛑 Face detection deactivated, disconnecting...');
       disconnectWebSocket();
     }
-  }, [debouncedIsActive, isConnected]);
+  }, [debouncedIsActive, isConnected, shouldDisconnect]);
 
   const getEmotionColor = (emotion?: string) => {
     switch (emotion?.toLowerCase()) {
@@ -468,6 +518,116 @@ export const FaceDetectionPanel: React.FC<FaceDetectionPanelProps> = ({
                     </div>
                   )}
 
+                  {/* Enhanced Features */}
+                  <div className="border-t pt-3 mt-3">
+                    <h4 className="text-sm font-medium mb-2 text-blue-600">Enhanced Analysis</h4>
+                    
+                    {/* Eye Tracking */}
+                    {analysisData.eye_tracking && (
+                      <div className="space-y-2 mb-3">
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs font-medium">Eye Tracking:</span>
+                          <Badge variant={analysisData.eye_tracking.eye_tracking === 'looking_at_screen' ? 'default' : 'secondary'}>
+                            {analysisData.eye_tracking.eye_tracking || 'unknown'}
+                          </Badge>
+                        </div>
+                        {analysisData.eye_tracking.eye_aspect_ratio && (
+                          <div className="flex items-center justify-between">
+                            <span className="text-xs">Eye Aspect Ratio:</span>
+                            <span className="text-xs text-muted-foreground">
+                              {analysisData.eye_tracking.eye_aspect_ratio.toFixed(3)}
+                            </span>
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    {/* Head Pose */}
+                    {analysisData.head_pose && (
+                      <div className="space-y-2 mb-3">
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs font-medium">Head Pose:</span>
+                          <Badge variant={analysisData.head_pose.looking_at_screen ? 'default' : 'secondary'}>
+                            {analysisData.head_pose.head_pose || 'unknown'}
+                          </Badge>
+                        </div>
+                        {analysisData.head_pose.gaze_distance && (
+                          <div className="flex items-center justify-between">
+                            <span className="text-xs">Gaze Distance:</span>
+                            <span className="text-xs text-muted-foreground">
+                              {Math.round(analysisData.head_pose.gaze_distance)}px
+                            </span>
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    {/* Multiple Faces */}
+                    {analysisData.multiple_faces && (
+                      <div className="space-y-2 mb-3">
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs font-medium">Face Count:</span>
+                          <Badge variant={analysisData.multiple_faces.multiple_faces_detected ? 'destructive' : 'default'}>
+                            {analysisData.multiple_faces.face_count || 0}
+                          </Badge>
+                        </div>
+                        {analysisData.multiple_faces.multiple_faces_detected && (
+                          <div className="text-xs text-red-600">
+                            ⚠️ Multiple people detected
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    {/* Screen Sharing Detection */}
+                    {analysisData.screen_sharing && (
+                      <div className="space-y-2 mb-3">
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs font-medium">Screen Activity:</span>
+                          <Badge variant={analysisData.screen_sharing.screen_sharing_detected ? 'destructive' : 'default'}>
+                            {analysisData.screen_sharing.screen_sharing_detected ? 'Switching' : 'Focused'}
+                          </Badge>
+                        </div>
+                        {analysisData.screen_sharing.time_since_last_activity && (
+                          <div className="flex items-center justify-between">
+                            <span className="text-xs">Last Activity:</span>
+                            <span className="text-xs text-muted-foreground">
+                              {Math.round(analysisData.screen_sharing.time_since_last_activity)}s ago
+                            </span>
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    {/* Voice Analysis */}
+                    {analysisData.voice_analysis && (
+                      <div className="space-y-2 mb-3">
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs font-medium">Voice Status:</span>
+                          <Badge variant={analysisData.voice_analysis.speaking ? 'default' : 'secondary'}>
+                            {analysisData.voice_analysis.speaking ? 'Speaking' : 'Silent'}
+                          </Badge>
+                        </div>
+                        {analysisData.voice_analysis.confidence !== undefined && (
+                          <div className="flex items-center justify-between">
+                            <span className="text-xs">Voice Confidence:</span>
+                            <span className="text-xs text-muted-foreground">
+                              {Math.round(analysisData.voice_analysis.confidence * 100)}%
+                            </span>
+                          </div>
+                        )}
+                        {analysisData.voice_analysis.nervousness !== undefined && (
+                          <div className="flex items-center justify-between">
+                            <span className="text-xs">Nervousness:</span>
+                            <span className="text-xs text-muted-foreground">
+                              {Math.round(analysisData.voice_analysis.nervousness * 100)}%
+                            </span>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+
                   {/* Recommendations */}
                   {analysisData.recommendations && analysisData.recommendations.length > 0 && (
                     <div className="mt-3">
@@ -477,6 +637,21 @@ export const FaceDetectionPanel: React.FC<FaceDetectionPanelProps> = ({
                           <li key={index} className="flex items-start gap-1">
                             <span className="text-blue-500">•</span>
                             {rec}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+
+                  {/* Suspicious Behavior */}
+                  {analysisData.suspicious_behavior && analysisData.suspicious_behavior.length > 0 && (
+                    <div className="mt-3">
+                      <h4 className="text-sm font-medium mb-2 text-red-600">⚠️ Suspicious Behavior:</h4>
+                      <ul className="text-xs text-red-600 space-y-1">
+                        {analysisData.suspicious_behavior.map((behavior, index) => (
+                          <li key={index} className="flex items-start gap-1">
+                            <span className="text-red-500">⚠</span>
+                            {behavior}
                           </li>
                         ))}
                       </ul>
@@ -498,4 +673,4 @@ export const FaceDetectionPanel: React.FC<FaceDetectionPanelProps> = ({
       )}
     </AnimatePresence>
   );
-}; 
+}); 

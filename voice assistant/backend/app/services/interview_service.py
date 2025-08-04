@@ -187,6 +187,7 @@ Return only valid JSON."""),
                         strengths=evaluation.get("strengths", []),
                         areas_for_improvement=evaluation.get("areas_for_improvement", []),
                         recommendations=evaluation.get("recommendations", []),
+                        transcript=[{"role": msg.role, "content": msg.content, "timestamp": msg.timestamp} for msg in conversation],
                         created_at=datetime.now(),
                         updated_at=datetime.now()
                     )
@@ -255,6 +256,7 @@ Return only valid JSON."""),
             strengths=["Completed the interview"],
             areas_for_improvement=["Enable AI evaluation for detailed feedback"],
             recommendations=["Ensure Azure OpenAI is configured for detailed evaluation"],
+            transcript=[],
             created_at=datetime.now(),
             updated_at=datetime.now()
         )
@@ -281,6 +283,7 @@ Return only valid JSON."""),
                 strengths=result.strengths,
                 areas_for_improvement=result.areas_for_improvement,
                 recommendations=result.recommendations,
+                transcript=result.transcript,
                 created_at=result.created_at,
                 updated_at=result.updated_at
             )
@@ -323,6 +326,7 @@ Return only valid JSON."""),
                     strengths=result.strengths,
                     areas_for_improvement=result.areas_for_improvement,
                     recommendations=result.recommendations,
+                    transcript=result.transcript,
                     created_at=result.created_at,
                     updated_at=result.updated_at
                 )
@@ -364,6 +368,7 @@ Return only valid JSON."""),
                 strengths=result.strengths,
                 areas_for_improvement=result.areas_for_improvement,
                 recommendations=result.recommendations,
+                transcript=result.transcript,
                 created_at=result.created_at,
                 updated_at=result.updated_at
             )
