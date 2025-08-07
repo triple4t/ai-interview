@@ -62,6 +62,13 @@ export const InterviewPreparation = ({ selectedJob, onStartInterview, onBackToJo
         }
 
         if (isReady) {
+            // Clear any previous interview results from localStorage
+            Object.keys(localStorage).forEach(key => {
+                if (key.startsWith('interview_result_')) {
+                    localStorage.removeItem(key);
+                }
+            });
+            
             onStartInterview();
         }
     };

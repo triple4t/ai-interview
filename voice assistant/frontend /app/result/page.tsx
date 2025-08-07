@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { useSearchParams } from 'next/navigation';
 
 interface FaceAnalysisData {
     emotion?: string;
@@ -13,7 +14,7 @@ interface FaceAnalysisData {
     suspicious_behavior?: string[];
 }
 
-interface InterviewResult {
+export interface InterviewResult {
     session_id: string;
     user_id: number;
     total_score: number;
@@ -77,6 +78,58 @@ interface InterviewResult {
 
 export default function ResultPage() {
     const [result, setResult] = useState<InterviewResult | null>(null);
+    const searchParams = useSearchParams();
+    const sessionId = searchParams.get('sessionId');
+
+    useEffect(() => {
+        // First, try to get the session ID from URL or latest session
+        const effectiveSessionId = sessionId || localStorage.getItem('latest_interview_session');
+        
+        // Try to load from localStorage using session-specific key
+        if (effectiveSessionId) {
+            const savedResult = localStorage.getItem(`interview_result_${effectiveSessionId}`);
+            if (savedResult) {
+                try {
+                    const parsedResult = JSON.parse(savedResult);
+                    setResult(parsedResult);
+                    return;
+                } catch (e) {
+                    console.error('Failed to parse saved interview result', e);
+                }
+            }
+        }
+
+        // Fallback to checking window history state (for backward compatibility)
+        const locationState = window.history.state?.usr?.interviewResult;
+        if (locationState) {
+            setResult(locationState);
+            // Save to localStorage with consistent key
+            if (locationState.session_id) {
+                const storageKey = `interview_result_${locationState.session_id}`;
+                localStorage.setItem(storageKey, JSON.stringify(locationState));
+                localStorage.setItem('latest_interview_session', locationState.session_id);
+            }
+            return;
+        }
+        
+        // Final fallback: check for old key (for backward compatibility)
+        const oldResult = localStorage.getItem('interviewResult');
+        if (oldResult) {
+            try {
+                const parsedResult = JSON.parse(oldResult);
+                setResult(parsedResult);
+                // Migrate to new storage format if possible
+                if (parsedResult.session_id) {
+                    const storageKey = `interview_result_${parsedResult.session_id}`;
+                    localStorage.setItem(storageKey, oldResult);
+                    localStorage.setItem('latest_interview_session', parsedResult.session_id);
+                }
+            } catch (e) {
+                console.error('Failed to parse old interview result', e);
+            }
+        }
+    }, [sessionId]);
+
     const [faceAnalysisData, setFaceAnalysisData] = useState<FaceAnalysisData | null>(null);
     const [loading, setLoading] = useState(true);
 
