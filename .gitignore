@@ -38,6 +38,7 @@ venv.bak/
 *.db
 *.sqlite
 *.sqlite3
+voice assistant/backend/db/vector_store/
 
 # Logs
 *.log
