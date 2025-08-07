@@ -531,7 +531,23 @@ class FaceDetectionManager:
                                 }
                             })
                         except Exception as e:
-                            print(f"❌ Error sending frame to client {client_id}: {e}")
+                            import traceback
+                            tb = traceback.format_exc()
+                            print(f"❌ Error sending frame to client {client_id}: {e}\n{tb}")
+                            import logging
+                            logging.error(f"Error sending frame to client {client_id}: {e}\n{tb}")
+                            # Attempt to notify client of error
+                            try:
+                                await websocket.send_json({
+                                    "type": "error",
+                                    "data": {"message": f"Error sending frame: {str(e)}"}
+                                })
+                            except Exception:
+                                pass
+                            try:
+                                await websocket.close()
+                            except Exception:
+                                pass
                             break
                         
                         # Small delay to control frame rate

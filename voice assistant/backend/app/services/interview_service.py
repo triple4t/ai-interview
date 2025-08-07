@@ -30,7 +30,7 @@ class InterviewService:
         self.evaluation_prompt = ChatPromptTemplate.from_messages([
             ("system", """You are an expert technical interviewer and evaluator. Your task is to evaluate interview responses and provide detailed feedback.
 
-IMPORTANT: This interview consists of EXACTLY 3 questions. Evaluate only these 3 Q&A pairs.
+IMPORTANT: This interview consists of EXACTLY 5 questions. Evaluate all 5 Q&A pairs.
 
 EVALUATION CRITERIA:
 1. Technical Accuracy (30%): How correct and accurate are the technical concepts?
@@ -47,7 +47,7 @@ SCORING GUIDELINES:
 - 50-59: Needs Improvement - Limited understanding
 - Below 50: Poor - Significant misunderstandings or lack of knowledge
 
-INTERVIEW DATA (3 Questions):
+INTERVIEW DATA (5 Questions):
 Questions: {questions}
 Answers: {answers}
 Full Conversation: {conversation}
@@ -55,7 +55,7 @@ Full Conversation: {conversation}
 Provide evaluation in the following JSON format:
 {{
     "overall_score": <total_score_out_of_100>,
-    "overall_analysis": "<comprehensive analysis of the 3-question interview>",
+    "overall_analysis": "<comprehensive analysis of the 5-question interview>",
     "detailed_feedback": [
         {{
             "question": "<question 1>",
@@ -80,6 +80,22 @@ Provide evaluation in the following JSON format:
             "feedback": "<detailed feedback for question 3>",
             "strengths": ["<strength1>", "<strength2>"],
             "weaknesses": ["<weakness1>", "<weakness2>"]
+        }},
+        {{
+            "question": "<question 4>",
+            "answer": "<answer 4>",
+            "score": <score_out_of_100>,
+            "feedback": "<detailed feedback for question 4>",
+            "strengths": ["<strength1>", "<strength2>"],
+            "weaknesses": ["<weakness1>", "<weakness2>"]
+        }},
+        {{
+            "question": "<question 5>",
+            "answer": "<answer 5>",
+            "score": <score_out_of_100>,
+            "feedback": "<detailed feedback for question 5>",
+            "strengths": ["<strength1>", "<strength2>"],
+            "weaknesses": ["<weakness1>", "<weakness2>"]
         }}
     ],
     "strengths": ["<overall_strength1>", "<overall_strength2>"],
@@ -88,7 +104,7 @@ Provide evaluation in the following JSON format:
 }}
 
 Return only valid JSON."""),
-            ("user", "Evaluate this 3-question technical interview session.")
+            ("user", "Evaluate this 5-question technical interview session.")
         ])
 
     async def evaluate_session(
@@ -101,19 +117,19 @@ Return only valid JSON."""),
         db: Session
     ) -> InterviewResultResponse:
         """
-        Evaluate a complete interview session with exactly 3 questions
+        Evaluate a complete interview session with exactly 5 questions
         """
-        # Ensure we only evaluate exactly 3 questions
-        if len(questions) != 3 or len(answers) != 3:
-            print(f"⚠️ Warning: Expected 3 Q&A pairs, got {len(questions)} questions and {len(answers)} answers")
+        # Ensure we only evaluate exactly 5 questions
+        if len(questions) != 5 or len(answers) != 5:
+            print(f"⚠️ Warning: Expected 5 Q&A pairs, got {len(questions)} questions and {len(answers)} answers")
             # Pad with empty strings if needed
-            while len(questions) < 3:
+            while len(questions) < 5:
                 questions.append("No question provided")
-            while len(answers) < 3:
+            while len(answers) < 5:
                 answers.append("No answer provided")
-            # Truncate if more than 3
-            questions = questions[:3]
-            answers = answers[:3]
+            # Truncate if more than 5
+            questions = questions[:5]
+            answers = answers[:5]
         """
         Evaluate a complete interview session
         """
@@ -283,9 +299,8 @@ Return only valid JSON."""),
                 strengths=result.strengths,
                 areas_for_improvement=result.areas_for_improvement,
                 recommendations=result.recommendations,
-                transcript=result.transcript,
-                created_at=result.created_at,
-                updated_at=result.updated_at
+                transcript=result.transcript
+                # created_at and updated_at will be handled by SQLAlchemy automatically
             )
             
             db.add(interview_result)
