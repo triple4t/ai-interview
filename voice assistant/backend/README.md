@@ -21,7 +21,7 @@ Create a `.env` file in the backend directory:
 
 ```env
 # Database
-DATABASE_URL=sqlite:///./interview_assistant.db
+DATABASE_URL=postgresql://postgres@localhost:5432/interview_assistant
 
 # Security
 SECRET_KEY=your-secret-key-change-in-production
@@ -68,7 +68,7 @@ python main.py start
 
 ## Database
 
-The application uses SQLite by default. The database file will be created automatically when you first run the application.
+The application uses PostgreSQL as the default database. Make sure you have PostgreSQL installed and running, and that the database `interview_assistant` exists.
 
 ## Frontend Integration
 
