@@ -740,7 +740,7 @@ export default function ResultPage() {
               Upload Resume
             </a>
             <a
-              href="/"
+              href="/jobs"
               className="bg-muted text-muted-foreground px-8 py-3 rounded-lg hover:bg-muted/90 transition-colors"
             >
               Back to Home

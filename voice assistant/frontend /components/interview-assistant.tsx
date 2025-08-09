@@ -12,7 +12,7 @@ import { SignOut, User, FileText, Building, Microphone } from '@phosphor-icons/r
 
 import { useUser } from '@/lib/user-context';
 
-type View = 'resume' | 'jobs' | 'preparation';
+type View = 'resume' | 'preparation';
 
 // Remove this interface as we'll use the User type from the API
 
@@ -45,7 +45,7 @@ export const InterviewAssistant = () => {
 
     const handleResumeUploaded = (data: ResumeData) => {
         setResumeData(data);
-        setCurrentView('jobs');
+        // Don't change view here, the resume upload will handle redirect to /jobs
     };
 
     const handleJobRecommendations = (jobs: Job[]) => {
@@ -119,15 +119,6 @@ export const InterviewAssistant = () => {
                 return (
                     <ResumeUpload
                         onResumeUploaded={handleResumeUploaded}
-                        onJobRecommendations={handleJobRecommendations}
-                    />
-                );
-
-            case 'jobs':
-                return (
-                    <JobRecommendations
-                        jobs={jobRecommendations}
-                        onJobSelect={handleStartInterview}
                     />
                 );
 
@@ -136,7 +127,7 @@ export const InterviewAssistant = () => {
                     <InterviewPreparation
                         selectedJob={selectedJob}
                         onStartInterview={handleBeginInterview}
-                        onBackToJobs={() => setCurrentView('jobs')}
+                        onBackToJobs={() => setCurrentView('resume')}
                     />
                 ) : null;
 
