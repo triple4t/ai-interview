@@ -96,31 +96,40 @@ class EnhancedFaceDetector:
             eye_center = [(left_eye[0] + right_eye[0]) / 2, (left_eye[1] + right_eye[1]) / 2]
             
             # Calculate gaze direction (simplified)
-            screen_center = [w / 2, h / 2]
-            gaze_vector = [eye_center[0] - screen_center[0], eye_center[1] - screen_center[1]]
-            gaze_distance = float(np.sqrt(gaze_vector[0]**2 + gaze_vector[1]**2))
+            screen_center = np.array([w / 2, h / 2])
+            eye_center = np.array(eye_center)
+            gaze_vector = eye_center - screen_center
+            gaze_distance = float(np.linalg.norm(gaze_vector))
             
-            # Determine if looking at screen
-            looking_at_screen = bool(gaze_distance < (w * 0.3))  # Within 30% of screen center
+            # Determine if looking at screen (within 30% of screen center)
+            looking_at_screen = gaze_distance < (w * 0.3)
             
-            # Head pose estimation
-            eye_distance = float(dist.euclidean(left_eye, right_eye))
+            # Ensure we're working with scalar values for head pose estimation
+            left_eye_x = float(left_eye[0]) if not isinstance(left_eye[0], (list, np.ndarray)) else float(np.mean(left_eye[0]))
+            right_eye_x = float(right_eye[0]) if not isinstance(right_eye[0], (list, np.ndarray)) else float(np.mean(right_eye[0]))
+            eye_center_y = float(eye_center[1]) if not isinstance(eye_center[1], (list, np.ndarray)) else float(np.mean(eye_center[1]))
+            
+            # Head pose estimation with explicit float comparisons
+            eye_distance = float(dist.euclidean(
+                [left_eye_x, 0],  # Use only x-coordinate for distance
+                [right_eye_x, 0]  # Use only x-coordinate for distance
+            ))
+            
             head_pose = "center"
-            
-            if left_eye[0] < (w * 0.4):
+            if left_eye_x < (w * 0.4):
                 head_pose = "left"
-            elif right_eye[0] > (w * 0.6):
+            elif right_eye_x > (w * 0.6):
                 head_pose = "right"
-            elif eye_center[1] < (h * 0.4):
+            elif eye_center_y < (h * 0.4):
                 head_pose = "up"
-            elif eye_center[1] > (h * 0.6):
+            elif eye_center_y > (h * 0.6):
                 head_pose = "down"
             
             return {
-                "looking_at_screen": looking_at_screen,
-                "head_pose": head_pose,
-                "gaze_distance": gaze_distance,
-                "eye_distance": eye_distance
+                "looking_at_screen": bool(looking_at_screen),  # Ensure boolean
+                "head_pose": str(head_pose),  # Ensure string
+                "gaze_distance": float(gaze_distance),  # Ensure float
+                "eye_distance": float(eye_distance)  # Ensure float
             }
         except Exception as e:
             logging.error(f"Error in head pose analysis: {e}")
@@ -128,27 +137,42 @@ class EnhancedFaceDetector:
     
     def detect_multiple_faces(self, frame):
         """Detect multiple faces and alert if more than one person"""
-        # Use MediaPipe for better multiple face detection
-        rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-        results = self.face_mesh.process(rgb_frame)
-        
-        face_count = 0
-        if results.multi_face_landmarks:
-            face_count = len(results.multi_face_landmarks)
-        
-        # Also check with OpenCV as backup
-        opencv_faces = self.detect_faces_opencv(frame)
-        opencv_face_count = len(opencv_faces)
-        
-        # Use the higher count
-        final_face_count = max(face_count, opencv_face_count)
-        
-        return {
-            "face_count": int(final_face_count),
-            "multiple_faces_detected": bool(final_face_count > 1),
-            "mediapipe_faces": int(face_count),
-            "opencv_faces": int(opencv_face_count)
-        }
+        try:
+            # Use MediaPipe for better multiple face detection
+            rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+            results = self.face_mesh.process(rgb_frame)
+            
+            # Safely get face count from MediaPipe
+            face_count = 0
+            if results and hasattr(results, 'multi_face_landmarks') and results.multi_face_landmarks:
+                face_count = len(results.multi_face_landmarks)
+            
+            # Also check with OpenCV as backup
+            opencv_faces = self.detect_faces_opencv(frame)
+            opencv_face_count = len(opencv_faces) if opencv_faces is not None else 0
+            
+            # Ensure we have integers for comparison
+            face_count = int(face_count) if not isinstance(face_count, (list, np.ndarray)) else len(face_count)
+            opencv_face_count = int(opencv_face_count) if not isinstance(opencv_face_count, (list, np.ndarray)) else len(opencv_face_count)
+            
+            # Use the higher count, ensuring we don't compare arrays
+            final_face_count = max(face_count, opencv_face_count)
+            
+            return {
+                "face_count": int(final_face_count),
+                "multiple_faces_detected": bool(int(final_face_count) > 1),  # Explicitly convert to int then bool
+                "mediapipe_faces": int(face_count),
+                "opencv_faces": int(opencv_face_count)
+            }
+        except Exception as e:
+            logging.error(f"Error in detect_multiple_faces: {e}")
+            # Return safe defaults in case of error
+            return {
+                "face_count": 0,
+                "multiple_faces_detected": False,
+                "mediapipe_faces": 0,
+                "opencv_faces": 0
+            }
     
     def analyze_eye_tracking(self, frame, face_landmarks):
         """Enhanced eye tracking analysis"""
@@ -214,14 +238,18 @@ class EnhancedFaceDetector:
             
             # Determine if looking at screen
             screen_threshold = w * 0.3
-            looking_at_screen = bool(eye_to_screen_distance < screen_threshold)
+            # Ensure we're comparing scalar values, not arrays
+            if isinstance(eye_to_screen_distance, (np.ndarray, list, tuple)):
+                eye_to_screen_distance = np.mean(eye_to_screen_distance)  # Take mean if it's an array
+            looking_at_screen = bool(float(eye_to_screen_distance) < float(screen_threshold))
             
+            # Ensure all values are Python native types before returning
             return {
-                "eye_state": eye_state,
+                "eye_state": str(eye_state),
                 "eye_tracking": "looking_at_screen" if looking_at_screen else "looking_away",
-                "eye_aspect_ratio": float(avg_ear),
-                "eye_center": [float(x) for x in eye_center.tolist()],
-                "screen_distance": eye_to_screen_distance
+                "eye_aspect_ratio": float(avg_ear) if not isinstance(avg_ear, (list, np.ndarray)) else float(np.mean(avg_ear)),
+                "eye_center": [float(x) for x in np.array(eye_center).flatten().tolist()],
+                "screen_distance": float(eye_to_screen_distance) if not isinstance(eye_to_screen_distance, (list, np.ndarray)) else float(np.mean(eye_to_screen_distance))
             }
         except Exception as e:
             logging.error(f"Error in eye tracking analysis: {e}")

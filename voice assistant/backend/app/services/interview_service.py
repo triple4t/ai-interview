@@ -209,7 +209,9 @@ Return only valid JSON."""),
                     )
                     
                     # Store in database
-                    await self._store_evaluation_result(result, db)
+                    storage_success = await self._store_evaluation_result(result, db)
+                    if not storage_success:
+                        print("⚠️ Warning: Failed to store evaluation result in database")
                     
                     return result
                     
@@ -283,35 +285,89 @@ Return only valid JSON."""),
         db: Session
     ):
         """
-        Store evaluation result in database
+        Store or update evaluation result in database based on session_id
         """
         try:
-            # Store complete evaluation result
-            interview_result = InterviewResult(
-                session_id=result.session_id,
-                user_id=result.user_id,
-                total_score=result.total_score,
-                max_score=result.max_score,
-                percentage=result.percentage,
-                questions_evaluated=result.questions_evaluated,
-                overall_analysis=result.overall_analysis,
-                detailed_feedback=result.detailed_feedback,
-                strengths=result.strengths,
-                areas_for_improvement=result.areas_for_improvement,
-                recommendations=result.recommendations,
-                transcript=result.transcript
-                # created_at and updated_at will be handled by SQLAlchemy automatically
-            )
+            # Check if a record with this session_id already exists
+            existing_result = db.query(InterviewResult).filter(
+                InterviewResult.session_id == result.session_id
+            ).first()
+
+            # Ensure transcript timestamps are serializable
+            transcript = []
+            if result.transcript:
+                for msg in result.transcript:
+                    msg_copy = msg.copy()
+                    if 'timestamp' in msg_copy and isinstance(msg_copy['timestamp'], datetime):
+                        msg_copy['timestamp'] = msg_copy['timestamp'].isoformat()
+                    transcript.append(msg_copy)
+            else:
+                transcript = None
+
+            # Ensure all JSON fields are serializable
+            def make_serializable(obj):
+                if isinstance(obj, dict):
+                    return {k: make_serializable(v) for k, v in obj.items()}
+                elif isinstance(obj, list):
+                    return [make_serializable(item) for item in obj]
+                elif isinstance(obj, datetime):
+                    return obj.isoformat()
+                return obj
+
+            current_time = datetime.now()
             
-            db.add(interview_result)
-            db.commit()
-            db.refresh(interview_result)
+            if existing_result:
+                # Update existing record
+                existing_result.total_score = result.total_score
+                existing_result.max_score = result.max_score
+                existing_result.percentage = result.percentage
+                existing_result.questions_evaluated = result.questions_evaluated
+                existing_result.overall_analysis = result.overall_analysis
+                existing_result.detailed_feedback = make_serializable(result.detailed_feedback)
+                existing_result.strengths = make_serializable(result.strengths)
+                existing_result.areas_for_improvement = make_serializable(result.areas_for_improvement)
+                existing_result.recommendations = make_serializable(result.recommendations)
+                existing_result.transcript = transcript
+                existing_result.updated_at = current_time
+                
+                db.add(existing_result)
+                db.commit()
+                db.refresh(existing_result)
+                
+                print(f"✅ Updated evaluation result for session {result.session_id}")
+            else:
+                # Create new record
+                interview_result = InterviewResult(
+                    session_id=result.session_id,
+                    user_id=result.user_id,
+                    total_score=result.total_score,
+                    max_score=result.max_score,
+                    percentage=result.percentage,
+                    questions_evaluated=result.questions_evaluated,
+                    overall_analysis=result.overall_analysis,
+                    detailed_feedback=make_serializable(result.detailed_feedback),
+                    strengths=make_serializable(result.strengths),
+                    areas_for_improvement=make_serializable(result.areas_for_improvement),
+                    recommendations=make_serializable(result.recommendations),
+                    transcript=transcript,
+                    created_at=result.created_at or current_time,
+                    updated_at=current_time
+                )
+                
+                db.add(interview_result)
+                db.commit()
+                db.refresh(interview_result)
+                
+                print(f"✅ Created new evaluation result for session {result.session_id}")
             
-            print(f"✅ Stored complete evaluation result for session {result.session_id}")
+            return True
             
         except Exception as e:
             print(f"Error storing evaluation result: {e}")
+            import traceback
+            traceback.print_exc()
             db.rollback()
+            return False
 
     async def get_user_history(
         self,
@@ -319,7 +375,7 @@ Return only valid JSON."""),
         db: Session
     ) -> List[InterviewResultResponse]:
         """
-        Get user's interview history
+        Get user's interview history with proper datetime handling
         """
         try:
             # Get complete evaluation results from the new table
@@ -329,6 +385,10 @@ Return only valid JSON."""),
             
             results = []
             for result in interview_results:
+                # Ensure we have valid timestamps
+                created_at = result.created_at or datetime.now()
+                updated_at = result.updated_at or created_at
+                
                 interview_result = InterviewResultResponse(
                     session_id=result.session_id,
                     user_id=result.user_id,
@@ -336,14 +396,14 @@ Return only valid JSON."""),
                     max_score=result.max_score,
                     percentage=result.percentage,
                     questions_evaluated=result.questions_evaluated,
-                    overall_analysis=result.overall_analysis,
-                    detailed_feedback=result.detailed_feedback,
-                    strengths=result.strengths,
-                    areas_for_improvement=result.areas_for_improvement,
-                    recommendations=result.recommendations,
-                    transcript=result.transcript,
-                    created_at=result.created_at,
-                    updated_at=result.updated_at
+                    overall_analysis=result.overall_analysis or "No analysis available",
+                    detailed_feedback=result.detailed_feedback or [],
+                    strengths=result.strengths or [],
+                    areas_for_improvement=result.areas_for_improvement or [],
+                    recommendations=result.recommendations or [],
+                    transcript=result.transcript or [],
+                    created_at=created_at,
+                    updated_at=updated_at
                 )
                 results.append(interview_result)
             
@@ -351,6 +411,8 @@ Return only valid JSON."""),
             
         except Exception as e:
             print(f"Error getting user history: {e}")
+            import traceback
+            traceback.print_exc()
             return []
 
     async def get_session_result(
@@ -360,7 +422,7 @@ Return only valid JSON."""),
         db: Session
     ) -> Optional[InterviewResultResponse]:
         """
-        Get specific session result
+        Get specific session result with proper datetime handling
         """
         try:
             result = db.query(InterviewResult).filter(
@@ -371,6 +433,10 @@ Return only valid JSON."""),
             if not result:
                 return None
             
+            # Ensure we have valid timestamps
+            created_at = result.created_at or datetime.now()
+            updated_at = result.updated_at or created_at
+            
             return InterviewResultResponse(
                 session_id=result.session_id,
                 user_id=result.user_id,
@@ -379,15 +445,17 @@ Return only valid JSON."""),
                 percentage=result.percentage,
                 questions_evaluated=result.questions_evaluated,
                 overall_analysis=result.overall_analysis,
-                detailed_feedback=result.detailed_feedback,
-                strengths=result.strengths,
-                areas_for_improvement=result.areas_for_improvement,
-                recommendations=result.recommendations,
-                transcript=result.transcript,
-                created_at=result.created_at,
-                updated_at=result.updated_at
+                detailed_feedback=result.detailed_feedback or [],
+                strengths=result.strengths or [],
+                areas_for_improvement=result.areas_for_improvement or [],
+                recommendations=result.recommendations or [],
+                transcript=result.transcript or [],
+                created_at=created_at,
+                updated_at=updated_at
             )
             
         except Exception as e:
             print(f"Error getting session result: {e}")
+            import traceback
+            traceback.print_exc()
             return None 
