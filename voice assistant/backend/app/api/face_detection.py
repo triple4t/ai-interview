@@ -44,13 +44,16 @@ class EnhancedFaceDetector:
         self.face_cascade = cv2.CascadeClassifier(
             cv2.data.haarcascades + "haarcascade_frontalface_default.xml"
         )
-        self.eye_cascade = cv2.CascadeClassifier(
-            cv2.data.haarcascades + "haarcascade_eye.xml"
-        )
 
-        # Activity tracking (for simple “screen switching” heuristic)
-        self.screen_sharing_detected = False
+        # Simple screen-activity heuristic
         self.last_activity_time = time.time()
+
+        # Temporal smoothing for presence (hysteresis)
+        self.with_face_frames = 0
+        self.no_face_frames = 0
+        self.state_face_detected = False
+        self.flip_up = 2     # need 2 consecutive frames w/ face to switch to True
+        self.flip_down = 5   # need 5 consecutive frames w/o face to switch to False
 
     # ---- Face detection (MP + fallback) ----
     def detect_faces_mediapipe(self, frame: np.ndarray):
@@ -74,7 +77,6 @@ class EnhancedFaceDetector:
             if len(landmarks) < 468:
                 return {"looking_at_screen": False, "head_pose": "unknown", "gaze_distance": 0.0}
 
-            # indices: 33 (left eye outer), 263 (right eye outer), 1 (nose)
             left_eye = np.array([landmarks[33].x * w, landmarks[33].y * h], dtype=float)
             right_eye = np.array([landmarks[263].x * w, landmarks[263].y * h], dtype=float)
             eye_center = (left_eye + right_eye) / 2.0
@@ -143,13 +145,12 @@ class EnhancedFaceDetector:
             if len(landmarks) < 468:
                 return {"eye_state": "unknown", "eye_tracking": "unknown", "eye_aspect_ratio": 0.0, "screen_distance": 0.0}
 
-            # landmark sets for rough EAR
             left_points = np.array(
                 [
-                    [landmarks[33].x * w, landmarks[33].y * h],   # left corner
-                    [landmarks[7].x * w, landmarks[7].y * h],     # top
-                    [landmarks[163].x * w, landmarks[163].y * h], # right corner
-                    [landmarks[145].x * w, landmarks[145].y * h], # bottom
+                    [landmarks[33].x * w, landmarks[33].y * h],
+                    [landmarks[7].x * w, landmarks[7].y * h],
+                    [landmarks[163].x * w, landmarks[163].y * h],
+                    [landmarks[145].x * w, landmarks[145].y * h],
                 ],
                 dtype=float,
             )
@@ -167,7 +168,7 @@ class EnhancedFaceDetector:
             def ear(pts: np.ndarray) -> float:
                 try:
                     A = dist.euclidean(pts[1], pts[3])  # vertical
-                    B = dist.euclidean(pts[0], pts[2])  # diagonal (approx, for stability)
+                    B = dist.euclidean(pts[0], pts[2])  # diagonal (approx)
                     C = dist.euclidean(pts[0], pts[2])  # horizontal
                     return float((A + B) / (2.0 * C)) if C > 0 else 0.3
                 except Exception:
@@ -204,16 +205,12 @@ class EnhancedFaceDetector:
 
     # ---- Simple tab/app switching heuristic ----
     def detect_screen_sharing(self, analysis: Dict[str, Any]) -> Dict[str, Any]:
-        current_time = time.time()
-        time_since_last = current_time - self.last_activity_time
-
+        now = time.time()
+        time_since_last = now - self.last_activity_time
         if analysis.get("face_detected"):
-            self.last_activity_time = current_time
-
-        self.screen_sharing_detected = bool(time_since_last > 5.0 and not analysis.get("face_detected"))
-
+            self.last_activity_time = now
         return {
-            "screen_sharing_detected": bool(self.screen_sharing_detected),
+            "screen_sharing_detected": bool(time_since_last > 5.0 and not analysis.get("face_detected")),
             "time_since_last_activity": float(time_since_last),
         }
 
@@ -246,35 +243,40 @@ class EnhancedFaceDetector:
             "recommendations": [],
         }
 
+        # 1) detection
         face_dets = self.detect_faces_mediapipe(frame)
         face_landmarks = None
         confidence = 0.0
 
         if face_dets:
-            det = face_dets[0]
+            det = max(face_dets, key=lambda d: d.score[0] if d.score else 0.0)
             confidence = float(det.score[0] if det.score else 0.0)
-
-            # get mesh landmarks for head/eye analysis
             face_mesh_results = self.face_mesh.process(rgb_frame)
             if face_mesh_results and face_mesh_results.multi_face_landmarks:
                 face_landmarks = face_mesh_results.multi_face_landmarks[0]
         else:
-            # fallback to OpenCV
             ocv_faces = self.detect_faces_opencv(frame)
             if ocv_faces is not None and len(ocv_faces) > 0:
-                confidence = 0.7  # arbitrary default when using OpenCV fallback
+                confidence = 0.6  # fallback heuristic
 
+        # 2) temporal smoothing state machine
+        if confidence > 0.0:
+            self.with_face_frames += 1
+            self.no_face_frames = 0
+            if not self.state_face_detected and self.with_face_frames >= self.flip_up:
+                self.state_face_detected = True
+        else:
+            self.no_face_frames += 1
+            self.with_face_frames = 0
+            if self.state_face_detected and self.no_face_frames >= self.flip_down:
+                self.state_face_detected = False
+
+        # 3) features & output
         if confidence > 0.0:
             head_pose = self.analyze_head_pose(frame, face_landmarks)
             eye_track = self.analyze_eye_tracking(frame, face_landmarks)
             multi = self.detect_multiple_faces(frame)
 
-            # temporarily mark face present to evaluate screen sharing heuristic
-            analysis["face_detected"] = True
-            analysis["face_count"] = int(multi["face_count"])
-            analysis["confidence"] = float(confidence)
-
-            # attention score
             attention_score = 0.0
             if head_pose.get("looking_at_screen"):
                 attention_score += 0.4
@@ -283,15 +285,17 @@ class EnhancedFaceDetector:
             if eye_track.get("eye_tracking") == "looking_at_screen":
                 attention_score += 0.3
 
-            if attention_score > 0.8 and confidence > 0.7:
-                engagement_level = "high"
-            elif attention_score > 0.5 and confidence > 0.5:
-                engagement_level = "medium"
-            else:
-                engagement_level = "low"
+            engagement_level = (
+                "high" if (attention_score > 0.8 and confidence > 0.7)
+                else "medium" if (attention_score > 0.5 and confidence > 0.5)
+                else "low"
+            )
 
             analysis.update(
                 {
+                    "face_detected": bool(self.state_face_detected),
+                    "face_count": int(multi["face_count"]),
+                    "confidence": float(confidence),
                     "attention_score": float(attention_score),
                     "engagement_level": str(engagement_level),
                     "eye_tracking": eye_track,
@@ -300,51 +304,36 @@ class EnhancedFaceDetector:
                 }
             )
 
-            # screen sharing heuristic now that analysis is partly filled
             analysis["screen_sharing"] = self.detect_screen_sharing(analysis)
-
-            # voice analysis
             voice_state = self.analyze_voice_patterns()
             analysis["voice_analysis"] = voice_state
 
-            # recommendations + suspicious
-            recs = []
-            sus = []
-
+            recs, sus = [], []
             if not head_pose.get("looking_at_screen"):
                 recs.append("Please look directly at the camera")
                 sus.append("User not looking at screen")
-
             hp = head_pose.get("head_pose", "center")
             if hp in {"left", "right", "up", "down"}:
                 recs.append(f"Please face the camera directly (currently looking {hp})")
                 sus.append(f"Head turned {hp}")
-
-            es = eye_track.get("eye_state")
-            if es == "closed":
+            if eye_track.get("eye_state") == "closed":
                 recs.append("Keep your eyes open and focused")
                 sus.append("Eyes closed - may indicate inattention")
-
             if eye_track.get("eye_tracking") == "looking_away":
                 recs.append("Please look at the camera")
                 sus.append("Eyes not focused on screen")
-
             if multi.get("multiple_faces_detected"):
                 recs.append("Only one person should be visible in the camera")
                 sus.append(f"Multiple faces detected ({multi.get('face_count', 0)} people)")
-
             if analysis["screen_sharing"].get("screen_sharing_detected"):
                 recs.append("Please stay focused on the interview")
                 sus.append("Potential screen switching detected")
-
             if voice_state.get("nervousness", 0.0) > 0.7:
                 recs.append("Try to speak more confidently and clearly")
                 sus.append("High nervousness detected in voice")
-
             if voice_state.get("confidence", 0.0) < 0.3:
                 recs.append("Speak with more confidence and clarity")
                 sus.append("Low confidence detected in voice")
-
             if engagement_level == "low":
                 recs.append("Please maintain focus and engagement")
                 sus.append("Low engagement detected")
@@ -352,10 +341,20 @@ class EnhancedFaceDetector:
             analysis["recommendations"] = recs
             analysis["suspicious_behavior"] = sus
         else:
-            # when we couldn't detect a face
+            analysis.update(
+                {
+                    "face_detected": bool(self.state_face_detected),
+                    "face_count": 0,
+                    "confidence": 0.0,
+                    "attention_score": 0.0,
+                    "engagement_level": "low",
+                    "eye_tracking": {"eye_state": "unknown", "eye_tracking": "unknown"},
+                    "head_pose": {"looking_at_screen": False, "head_pose": "unknown"},
+                    "multiple_faces": {"face_count": 0, "multiple_faces_detected": False},
+                }
+            )
             analysis["screen_sharing"] = self.detect_screen_sharing(analysis)
 
-        # Return the original frame (unannotated) and analysis
         return frame, analysis
 
 
@@ -373,7 +372,6 @@ class FaceDetectionManager:
         self.connections: Dict[str, Dict[str, Any]] = {}
 
     async def start_camera(self) -> None:
-        # Semantic: mark the service as "ready/streaming". We don't use a local camera.
         if not self.is_streaming:
             logger.info("Starting face detection streaming (client-provided frames).")
             self.is_streaming = True
@@ -406,11 +404,9 @@ async def websocket_endpoint(websocket: WebSocket, client_id: str):
                 frame_data = msg.get("data", {})
                 image_b64 = frame_data.get("image")
                 if not image_b64:
-                    # ignore empty payloads
                     continue
 
                 try:
-                    # decode base64 image
                     header, encoded = image_b64.split(",", 1) if "," in image_b64 else ("", image_b64)
                     binary = base64.b64decode(encoded)
                     nparr = np.frombuffer(binary, np.uint8)
@@ -455,7 +451,6 @@ async def websocket_endpoint(websocket: WebSocket, client_id: str):
             elif msg_type == "ping":
                 await websocket.send_json({"type": "pong"})
 
-            # throttle loop a bit to avoid pegging CPU if client spams
             await asyncio.sleep(0)
 
     except WebSocketDisconnect:
@@ -528,7 +523,7 @@ async def get_face_detection_status():
     """Return the service status (no local camera used; client supplies frames)."""
     return {
         "is_streaming": face_manager.is_streaming,
-        "camera_available": False,  # no local camera used
+        "camera_available": False,
         "camera_started": face_manager.is_streaming,
         "active_connections": len(face_manager.connections),
         "features": [
@@ -537,5 +532,6 @@ async def get_face_detection_status():
             "Multiple face detection",
             "Screen sharing detection",
             "Voice analysis integration",
+            "Temporal smoothing",
         ],
     }

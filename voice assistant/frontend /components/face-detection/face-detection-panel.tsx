@@ -85,11 +85,13 @@ export const FaceDetectionPanel = forwardRef<
   const canvasRef = useRef<HTMLCanvasElement | null>(null); // offscreen for encoding
   const rafIdRef = useRef<number | null>(null);
   const pingTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const lastSentRef = useRef<number>(0);
   const clientId = useRef(
     `client_${Date.now()}_${Math.random().toString(36).slice(2, 11)}`
   );
   const retryCountRef = useRef(0);
   const MAX_RETRIES = 3;
+  const TARGET_FPS = 10; // ~10fps upstream
 
   // Expose a hard disconnect to parent
   const forceDisconnect = useCallback(() => {
@@ -150,6 +152,14 @@ export const FaceDetectionPanel = forwardRef<
       rafIdRef.current = null;
       return;
     }
+
+    const now = performance.now();
+    const minInterval = 1000 / TARGET_FPS;
+    if (now - lastSentRef.current < minInterval) {
+      rafIdRef.current = requestAnimationFrame(frameLoop);
+      return;
+    }
+
     const video = videoRef.current;
     let canvas = canvasRef.current;
     if (!video || video.readyState < 2) {
@@ -180,6 +190,7 @@ export const FaceDetectionPanel = forwardRef<
             },
           })
         );
+        lastSentRef.current = now;
       } catch {}
     }
     rafIdRef.current = requestAnimationFrame(frameLoop);
@@ -404,6 +415,11 @@ export const FaceDetectionPanel = forwardRef<
                   muted
                   autoPlay
                 />
+                {cameraStarted && analysisData.face_detected === false && (
+                  <div className="absolute inset-0 flex items-center justify-center bg-black/40 rounded-lg">
+                    <div className="text-white text-xs">No face detected</div>
+                  </div>
+                )}
                 {!cameraStarted && !error && (
                   <div className="absolute inset-0 flex items-center justify-center text-white/80 text-sm">
                     {isConnected
@@ -424,6 +440,30 @@ export const FaceDetectionPanel = forwardRef<
                       {analysisData.face_detected ? "Yes" : "No"}
                     </Badge>
                   </div>
+
+                  {analysisData.emotion && (
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm font-medium flex items-center gap-1">
+                        <Smiley size={16} />
+                        Emotion:
+                      </span>
+                      <Badge className={getEmotionColor(analysisData.emotion)}>
+                        {analysisData.emotion}
+                      </Badge>
+                    </div>
+                  )}
+
+                  {analysisData.eye_state && (
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm font-medium flex items-center gap-1">
+                        <Eye size={16} />
+                        Eye State:
+                      </span>
+                      <Badge className={getEyeStateColor(analysisData.eye_state)}>
+                        {analysisData.eye_state}
+                      </Badge>
+                    </div>
+                  )}
 
                   {analysisData.engagement_level && (
                     <div className="flex items-center justify-between">
