@@ -1,7 +1,6 @@
 import { Public_Sans } from 'next/font/google';
 import localFont from 'next/font/local';
 import { headers } from 'next/headers';
-import { ApplyThemeScript, ThemeToggle } from '@/components/theme-toggle';
 import { getAppConfig } from '@/lib/utils';
 import { Providers } from '@/components/providers';
 import './globals.css';
@@ -53,11 +52,10 @@ export default async function RootLayout({ children }: RootLayoutProps) {
     .join('\n');
 
   return (
-    <html lang="en" suppressHydrationWarning className="scroll-smooth">
+    <html lang="en" className="light" suppressHydrationWarning>
       <head>
         {styles && <style>{styles}</style>}
         <meta name="description" content={pageDescription} />
-        <ApplyThemeScript />
       </head>
       <body
         className={`${publicSans.variable} ${commitMono.variable} overflow-x-hidden antialiased`}

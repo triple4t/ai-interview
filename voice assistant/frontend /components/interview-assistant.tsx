@@ -9,7 +9,7 @@ import { InterviewPreparation } from '@/components/interview/interview-preparati
 import { App } from '@/components/app';
 import { Button } from '@/components/ui/button';
 import { SignOut, User, FileText, Building, Microphone } from '@phosphor-icons/react';
-import { ThemeToggle } from './theme-toggle';
+
 import { useUser } from '@/lib/user-context';
 
 type View = 'resume' | 'jobs' | 'preparation';
@@ -164,7 +164,6 @@ export const InterviewAssistant = () => {
                                 )}
                             </div>
                             <div className="flex items-center space-x-4">
-                                <ThemeToggle className="w-auto" />
                                 <Button
                                     variant="outline"
                                     size="sm"
