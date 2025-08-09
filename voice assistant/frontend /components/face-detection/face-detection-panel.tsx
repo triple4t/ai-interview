@@ -81,8 +81,8 @@ export const FaceDetectionPanel = forwardRef<
 
   const wsRef = useRef<WebSocket | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
-  const videoRef = useRef<HTMLVideoElement | null>(null);
-  const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const videoRef = useRef<HTMLVideoElement | null>(null); // visible preview
+  const canvasRef = useRef<HTMLCanvasElement | null>(null); // offscreen for encoding
   const rafIdRef = useRef<number | null>(null);
   const pingTimerRef = useRef<NodeJS.Timeout | null>(null);
   const clientId = useRef(
@@ -91,27 +91,24 @@ export const FaceDetectionPanel = forwardRef<
   const retryCountRef = useRef(0);
   const MAX_RETRIES = 3;
 
-  // Expose forceDisconnect to parent
+  // Expose a hard disconnect to parent
   const forceDisconnect = useCallback(() => {
     setError(null);
     stopCamera();
     if (wsRef.current) {
       try {
         wsRef.current.close();
-      } catch {
-        // ignore
-      }
+      } catch {}
       wsRef.current = null;
     }
     setIsConnected(false);
     setIsConnecting(false);
     setIsLoading(false);
     retryCountRef.current = 0;
+    setAnalysisData({});
   }, []);
 
   useImperativeHandle(ref, () => ({ forceDisconnect }), [forceDisconnect]);
-
-  // --- Helpers ----------------------------------------------------------------
 
   const clearPing = () => {
     if (pingTimerRef.current) {
@@ -119,7 +116,6 @@ export const FaceDetectionPanel = forwardRef<
       pingTimerRef.current = null;
     }
   };
-
   const startPing = () => {
     clearPing();
     pingTimerRef.current = setInterval(() => {
@@ -138,19 +134,14 @@ export const FaceDetectionPanel = forwardRef<
       try {
         videoRef.current.pause();
         videoRef.current.srcObject = null;
-      } catch {
-        // ignore
-      }
-      videoRef.current = null;
+      } catch {}
     }
     if (streamRef.current) {
       try {
         streamRef.current.getTracks().forEach((t) => t.stop());
-      } catch {
-        // ignore
-      }
-      streamRef.current = null;
+      } catch {}
     }
+    streamRef.current = null;
     setCameraStarted(false);
   }, []);
 
@@ -162,7 +153,6 @@ export const FaceDetectionPanel = forwardRef<
     const video = videoRef.current;
     let canvas = canvasRef.current;
     if (!video || video.readyState < 2) {
-      // not ready
       rafIdRef.current = requestAnimationFrame(frameLoop);
       return;
     }
@@ -179,7 +169,7 @@ export const FaceDetectionPanel = forwardRef<
     if (ctx) {
       ctx.drawImage(video, 0, 0, w, h);
       try {
-        const frameData = canvas.toDataURL("image/jpeg", 0.8);
+        const frameData = canvas.toDataURL("image/jpeg", 0.7);
         wsRef.current.send(
           JSON.stringify({
             type: "video_frame",
@@ -190,12 +180,8 @@ export const FaceDetectionPanel = forwardRef<
             },
           })
         );
-      } catch (err) {
-        // swallow send errors; reconnect logic handles connection state
-        // console.error("send error", err);
-      }
+      } catch {}
     }
-
     rafIdRef.current = requestAnimationFrame(frameLoop);
   }, []);
 
@@ -207,22 +193,23 @@ export const FaceDetectionPanel = forwardRef<
       const stream = await navigator.mediaDevices.getUserMedia({
         video: {
           width: { ideal: 1280 },
-        height: { ideal: 720 },
+          height: { ideal: 720 },
           facingMode: "user",
         },
         audio: false,
       });
 
-      const video = document.createElement("video");
-      video.autoplay = true;
-      video.muted = true;
-      video.playsInline = true;
-      video.srcObject = stream;
-      await video.play();
+      if (!videoRef.current) {
+        setError("Video element not ready.");
+        return;
+      }
+      videoRef.current.autoplay = true;
+      videoRef.current.muted = true;
+      videoRef.current.playsInline = true;
+      videoRef.current.srcObject = stream;
+      await videoRef.current.play();
 
       streamRef.current = stream;
-      videoRef.current = video;
-
       setCameraStarted(true);
       rafIdRef.current = requestAnimationFrame(frameLoop);
     } catch (err) {
@@ -242,7 +229,6 @@ export const FaceDetectionPanel = forwardRef<
     setError(null);
 
     const wsUrl = `ws://localhost:8000/api/v1/face-detection/ws/${clientId.current}`;
-    // console.log("Connecting to", wsUrl);
     const ws = new WebSocket(wsUrl);
 
     ws.onopen = () => {
@@ -261,8 +247,6 @@ export const FaceDetectionPanel = forwardRef<
           const newAnalysis: AnalysisData = data.data?.analysis ?? {};
           setAnalysisData(newAnalysis);
           onAnalysisDataChange?.(newAnalysis);
-        } else if (data.type === "pong") {
-          // keep-alive
         } else if (data.type === "error") {
           setError(data.message || "Face detection error");
         }
@@ -295,18 +279,14 @@ export const FaceDetectionPanel = forwardRef<
     };
   }, [isActive, isConnecting, isConnected, onAnalysisDataChange, stopCamera]);
 
-  // --- Effects ----------------------------------------------------------------
-
-  // Manage WS lifecycle based on isActive
+  // Lifecycle: connect/disconnect WS
   useEffect(() => {
     if (isActive) {
       connectWebSocket();
     } else {
       forceDisconnect();
     }
-
     return () => {
-      // cleanup on unmount
       forceDisconnect();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -321,8 +301,7 @@ export const FaceDetectionPanel = forwardRef<
     }
   }, [shouldStartCamera, isConnected, cameraStarted, startCamera, stopCamera]);
 
-  // --- UI helpers -------------------------------------------------------------
-
+  // UI helpers
   const getEmotionColor = (emotion?: string) => {
     switch ((emotion || "").toLowerCase()) {
       case "happy":
@@ -337,7 +316,6 @@ export const FaceDetectionPanel = forwardRef<
         return "bg-gray-100 text-gray-800";
     }
   };
-
   const getEyeStateColor = (eyeState?: string) => {
     switch ((eyeState || "").toLowerCase()) {
       case "open":
@@ -350,7 +328,6 @@ export const FaceDetectionPanel = forwardRef<
         return "bg-gray-100 text-gray-800";
     }
   };
-
   const getEngagementColor = (level?: string) => {
     switch ((level || "").toLowerCase()) {
       case "high":
@@ -363,8 +340,6 @@ export const FaceDetectionPanel = forwardRef<
         return "bg-gray-100 text-gray-800";
     }
   };
-
-  // --- Render ----------------------------------------------------------------
 
   return (
     <AnimatePresence>
@@ -412,7 +387,7 @@ export const FaceDetectionPanel = forwardRef<
                 )}
               </div>
 
-              {/* Error Display */}
+              {/* Error */}
               {error && (
                 <Alert variant="destructive">
                   <Warning size={16} />
@@ -420,22 +395,27 @@ export const FaceDetectionPanel = forwardRef<
                 </Alert>
               )}
 
-              {/* Waiting State */}
-              {!error && !cameraStarted && (
-                <div className="text-center py-6 text-muted-foreground">
-                  <Camera size={32} className="mx-auto mb-2 opacity-50" />
-                  <p className="text-sm">
+              {/* Visible Camera Preview */}
+              <div className="relative">
+                <video
+                  ref={videoRef}
+                  className="w-full h-48 object-cover rounded-lg border bg-black"
+                  playsInline
+                  muted
+                  autoPlay
+                />
+                {!cameraStarted && !error && (
+                  <div className="absolute inset-0 flex items-center justify-center text-white/80 text-sm">
                     {isConnected
-                      ? "Waiting for camera to start…"
+                      ? "Camera not started yet…"
                       : "Waiting for connection…"}
-                  </p>
-                </div>
-              )}
+                  </div>
+                )}
+              </div>
 
-              {/* Analysis Data */}
+              {/* Analysis */}
               {Object.keys(analysisData).length > 0 && (
                 <div className="space-y-3">
-                  {/* Face Detected */}
                   <div className="flex items-center justify-between">
                     <span className="text-sm font-medium">Face Detected:</span>
                     <Badge
@@ -445,33 +425,6 @@ export const FaceDetectionPanel = forwardRef<
                     </Badge>
                   </div>
 
-                  {/* Emotion */}
-                  {analysisData.emotion && (
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm font-medium flex items-center gap-1">
-                        <Smiley size={16} />
-                        Emotion:
-                      </span>
-                      <Badge className={getEmotionColor(analysisData.emotion)}>
-                        {analysisData.emotion}
-                      </Badge>
-                    </div>
-                  )}
-
-                  {/* Eye State (basic) */}
-                  {analysisData.eye_state && (
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm font-medium flex items-center gap-1">
-                        <Eye size={16} />
-                        Eye State:
-                      </span>
-                      <Badge className={getEyeStateColor(analysisData.eye_state)}>
-                        {analysisData.eye_state}
-                      </Badge>
-                    </div>
-                  )}
-
-                  {/* Engagement */}
                   {analysisData.engagement_level && (
                     <div className="flex items-center justify-between">
                       <span className="text-sm font-medium">Engagement:</span>
@@ -485,7 +438,6 @@ export const FaceDetectionPanel = forwardRef<
                     </div>
                   )}
 
-                  {/* Confidence */}
                   {typeof analysisData.confidence === "number" && (
                     <div className="flex items-center justify-between">
                       <span className="text-sm font-medium">Confidence:</span>
@@ -495,7 +447,6 @@ export const FaceDetectionPanel = forwardRef<
                     </div>
                   )}
 
-                  {/* Attention */}
                   {typeof analysisData.attention_score === "number" && (
                     <div className="flex items-center justify-between">
                       <span className="text-sm font-medium">Attention:</span>
@@ -511,7 +462,6 @@ export const FaceDetectionPanel = forwardRef<
                       Enhanced Analysis
                     </h4>
 
-                    {/* Eye Tracking */}
                     {analysisData.eye_tracking && (
                       <div className="space-y-2 mb-3">
                         <div className="flex items-center justify-between">
@@ -543,7 +493,6 @@ export const FaceDetectionPanel = forwardRef<
                       </div>
                     )}
 
-                    {/* Head Pose */}
                     {analysisData.head_pose && (
                       <div className="space-y-2 mb-3">
                         <div className="flex items-center justify-between">
@@ -570,14 +519,14 @@ export const FaceDetectionPanel = forwardRef<
                       </div>
                     )}
 
-                    {/* Multiple Faces */}
                     {analysisData.multiple_faces && (
                       <div className="space-y-2 mb-3">
                         <div className="flex items-center justify-between">
                           <span className="text-xs font-medium">Face Count:</span>
                           <Badge
                             variant={
-                              analysisData.multiple_faces.multiple_faces_detected
+                              analysisData.multiple_faces
+                                .multiple_faces_detected
                                 ? "destructive"
                                 : "default"
                             }
@@ -593,7 +542,6 @@ export const FaceDetectionPanel = forwardRef<
                       </div>
                     )}
 
-                    {/* Screen Sharing */}
                     {analysisData.screen_sharing && (
                       <div className="space-y-2 mb-3">
                         <div className="flex items-center justify-between">
@@ -630,7 +578,6 @@ export const FaceDetectionPanel = forwardRef<
                       </div>
                     )}
 
-                    {/* Voice Analysis */}
                     {analysisData.voice_analysis && (
                       <div className="space-y-2 mb-3">
                         <div className="flex items-center justify-between">
