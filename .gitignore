@@ -38,7 +38,9 @@ venv.bak/
 *.db
 *.sqlite
 *.sqlite3
+# Vector stores
 voice assistant/backend/db/vector_store/
+db/vector_store
 
 # Logs
 *.log
@@ -136,3 +138,10 @@ azure_credentials.json
 
 # KMS logs
 KMS/logs/ 
+
+interview-assistant_key.pemvoice assistant/backend/db/
+
+# Local database files
+voice assistant/backend/db/
+
+interview-assistant_key.pem

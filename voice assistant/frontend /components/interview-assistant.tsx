@@ -9,10 +9,10 @@ import { InterviewPreparation } from '@/components/interview/interview-preparati
 import { App } from '@/components/app';
 import { Button } from '@/components/ui/button';
 import { SignOut, User, FileText, Building, Microphone } from '@phosphor-icons/react';
-import { ThemeToggle } from './theme-toggle';
+
 import { useUser } from '@/lib/user-context';
 
-type View = 'resume' | 'jobs' | 'preparation';
+type View = 'resume' | 'preparation';
 
 // Remove this interface as we'll use the User type from the API
 
@@ -45,7 +45,7 @@ export const InterviewAssistant = () => {
 
     const handleResumeUploaded = (data: ResumeData) => {
         setResumeData(data);
-        setCurrentView('jobs');
+        // Don't change view here, the resume upload will handle redirect to /jobs
     };
 
     const handleJobRecommendations = (jobs: Job[]) => {
@@ -119,15 +119,6 @@ export const InterviewAssistant = () => {
                 return (
                     <ResumeUpload
                         onResumeUploaded={handleResumeUploaded}
-                        onJobRecommendations={handleJobRecommendations}
-                    />
-                );
-
-            case 'jobs':
-                return (
-                    <JobRecommendations
-                        jobs={jobRecommendations}
-                        onJobSelect={handleStartInterview}
                     />
                 );
 
@@ -136,7 +127,7 @@ export const InterviewAssistant = () => {
                     <InterviewPreparation
                         selectedJob={selectedJob}
                         onStartInterview={handleBeginInterview}
-                        onBackToJobs={() => setCurrentView('jobs')}
+                        onBackToJobs={() => setCurrentView('resume')}
                     />
                 ) : null;
 
@@ -164,7 +155,6 @@ export const InterviewAssistant = () => {
                                 )}
                             </div>
                             <div className="flex items-center space-x-4">
-                                <ThemeToggle className="w-auto" />
                                 <Button
                                     variant="outline"
                                     size="sm"

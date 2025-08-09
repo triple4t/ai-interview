@@ -32,7 +32,7 @@ AZURE_OPENAI_EMBEDDING_DEPLOYMENT_NAME=your_embedding_deployment_name
 AZURE_OPENAI_API_VERSION=2024-02-15-preview
 
 # Database Configuration
-DATABASE_URL=sqlite:///./interview_assistant.db
+DATABASE_URL=postgresql://postgres@localhost:5432/interview_assistant
 
 # JWT Configuration
 SECRET_KEY=your_secret_key_here

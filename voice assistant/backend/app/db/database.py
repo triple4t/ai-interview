@@ -1,14 +1,16 @@
 from sqlalchemy import create_engine
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
-import os
+from ..core.config import settings
 
-# Database URL - using SQLite for development, can be changed to PostgreSQL for production
-DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./interview_assistant.db")
-
+# Create database engine using settings
 engine = create_engine(
-    DATABASE_URL, 
-    connect_args={"check_same_thread": False} if DATABASE_URL.startswith("sqlite") else {}
+    settings.database_url,
+    pool_pre_ping=True,  # Enable connection health checks
+    pool_size=settings.database_pool_size,
+    max_overflow=settings.database_max_overflow,
+    pool_timeout=settings.database_pool_timeout,
+    pool_recycle=settings.database_pool_recycle
 )
 
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)

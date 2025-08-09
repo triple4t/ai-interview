@@ -13,8 +13,14 @@ class Settings(BaseSettings):
     algorithm: str = "HS256"
     access_token_expire_minutes: int = 30
     
-    # Database settings
-    database_url: str = "sqlite:///./interview_assistant.db"
+    # Database settings - using PostgreSQL
+    database_url: str = "postgresql://postgres@localhost:5432/interview_assistant"
+    
+    # PostgreSQL specific settings
+    database_pool_size: int = 5
+    database_max_overflow: int = 10
+    database_pool_timeout: int = 30
+    database_pool_recycle: int = 1800
     
     # CORS settings
     allowed_origins: list = ["http://localhost:3000", "http://127.0.0.1:3000"]

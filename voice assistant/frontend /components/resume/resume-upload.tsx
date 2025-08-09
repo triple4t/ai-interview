@@ -8,8 +8,8 @@ import { Upload, FileText, CheckCircle, Warning, MagnifyingGlass } from '@phosph
 import { apiClient } from '@/lib/api';
 
 interface ResumeUploadProps {
-    onResumeUploaded: (resumeData: any) => void;
-    onJobRecommendations: (jobs: any[]) => void;
+    onResumeUploaded?: (resumeData: any) => void;
+    onJobRecommendations?: (jobs: any[]) => void;
 }
 
 interface JobMatch {
@@ -94,7 +94,7 @@ export const ResumeUpload = ({ onResumeUploaded, onJobRecommendations }: ResumeU
             const transformedJobs = jobMatches.map((match, index) => ({
                 id: index + 1,
                 title: match.jd_title || 'Unknown Position',
-                company: 'AI Interview Assistant',
+                company: match.jd_source || 'AI Interview Assistant',
                 location: 'Remote/Hybrid',
                 salary: 'Competitive',
                 match: Math.round((match.match_percentage || 0) * 100),
@@ -106,19 +106,25 @@ export const ResumeUpload = ({ onResumeUploaded, onJobRecommendations }: ResumeU
                 jdSource: match.jd_source || 'Unknown'
             }));
 
+            // Save jobs to localStorage for the /jobs page
+            localStorage.setItem('jobRecommendations', JSON.stringify(transformedJobs));
+            
+            // Call callbacks if provided (for backward compatibility)
+            if (onJobRecommendations) onJobRecommendations(transformedJobs);
+            
             // Create mock resume data (since we don't extract it from PDF yet)
             const mockResumeData = {
                 name: 'Resume Analysis Complete',
                 email: 'analysis@aiinterview.com',
-                skills: jobMatches.length > 0 ? jobMatches[0].key_matches : [],
+                skills: jobMatches.length > 0 ? jobMatches[0].key_matches || [] : [],
                 experience: 'Analyzed from resume',
                 education: 'Analyzed from resume'
             };
-
-            onResumeUploaded(mockResumeData);
-            onJobRecommendations(transformedJobs);
-
-            setIsAnalyzing(false);
+            
+            if (onResumeUploaded) onResumeUploaded(mockResumeData);
+            
+            // Redirect to /jobs page
+            window.location.href = '/jobs';
 
         } catch (error) {
             console.error('Error during upload/analysis:', error);
