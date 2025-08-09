@@ -12,7 +12,7 @@ This backend provides authentication and user management for the Interview Assis
 ### 1. Install Dependencies
 
 ```bash
-pip install -r requirements-fastapi.txt
+pip install -r requirements.txt
 ```
 
 ### 2. Environment Variables
