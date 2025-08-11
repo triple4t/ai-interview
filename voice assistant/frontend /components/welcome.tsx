@@ -10,7 +10,11 @@ interface WelcomeProps {
   disabled: boolean;
 }
 
-export function Welcome({ startButtonText, onStartCall, disabled }: WelcomeProps) {
+export function Welcome({
+  startButtonText,
+  onStartCall,
+  disabled,
+}: WelcomeProps) {
   return (
     <div
       inert={disabled}
@@ -32,7 +36,13 @@ export function Welcome({ startButtonText, onStartCall, disabled }: WelcomeProps
       <p className="text-fg1 max-w-prose pt-1 leading-6 font-medium">
         Start your interview
       </p>
-      <Button variant="default" size="lg" onClick={onStartCall} className="mt-6 w-64 font-mono" disabled={disabled}>
+      <Button
+        variant="default"
+        size="lg"
+        onClick={onStartCall}
+        className="mt-6 w-64 font-mono"
+        disabled={disabled}
+      >
         {startButtonText}
       </Button>
     </div>

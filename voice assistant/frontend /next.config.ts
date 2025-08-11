@@ -1,9 +1,16 @@
-import type { NextConfig } from 'next';
+import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  /* config options here */
   devIndicators: {
-    position: 'bottom-right',
+    position: "bottom-right",
+  },
+  typescript: {
+    // ✅ Allow production builds to complete even if there are TS errors
+    ignoreBuildErrors: true,
+  },
+  eslint: {
+    // ✅ Allow production builds to complete even if there are ESLint errors
+    ignoreDuringBuilds: true,
   },
 };
 

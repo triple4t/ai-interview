@@ -1,16 +1,12 @@
-'use client';
+"use client";
 
-import { ReactNode } from 'react';
-import { UserProvider } from '@/lib/user-context';
+import { ReactNode } from "react";
+import { UserProvider } from "@/lib/user-context";
 
 interface ProvidersProps {
-    children: ReactNode;
+  children: ReactNode;
 }
 
 export function Providers({ children }: ProvidersProps) {
-    return (
-        <UserProvider>
-            {children}
-        </UserProvider>
-    );
+  return <UserProvider>{children}</UserProvider>;
 }

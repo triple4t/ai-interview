@@ -2,10 +2,10 @@ import { useEffect, useRef, useState } from "react";
 
 type Options = {
   // mark suspicious if hidden this long (ms)
-  longHideMs?: number;          // default 5000
+  longHideMs?: number; // default 5000
   // mark suspicious if switches exceed this within window (N per windowMs)
-  maxSwitchesPerWindow?: number;// default 3
-  windowMs?: number;            // default 30000
+  maxSwitchesPerWindow?: number; // default 3
+  windowMs?: number; // default 30000
   onSuspicious?: (reason: string, data?: Record<string, any>) => void;
 };
 
@@ -35,7 +35,7 @@ export function useAttentionMonitor(opts: Options = {}) {
       switches.current.push(now);
 
       // drop old switches outside the window
-      switches.current = switches.current.filter(t => now - t <= windowMs);
+      switches.current = switches.current.filter((t) => now - t <= windowMs);
 
       if (hidden) {
         hideStartedAt.current = now;
@@ -66,7 +66,7 @@ export function useAttentionMonitor(opts: Options = {}) {
       // blur fires even if tab still visible (e.g., alt-tab). Count it too.
       const now = Date.now();
       switches.current.push(now);
-      switches.current = switches.current.filter(t => now - t <= windowMs);
+      switches.current = switches.current.filter((t) => now - t <= windowMs);
 
       if (switches.current.length >= maxSwitchesPerWindow) {
         onSuspicious?.("rapid_window_blur", {

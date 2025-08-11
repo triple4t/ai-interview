@@ -85,7 +85,8 @@ export default function ResultPage() {
   const sessionId = searchParams.get("sessionId");
 
   const [result, setResult] = useState<InterviewResult | null>(null);
-  const [faceAnalysisData, setFaceAnalysisData] = useState<FaceAnalysisData | null>(null);
+  const [faceAnalysisData, setFaceAnalysisData] =
+    useState<FaceAnalysisData | null>(null);
   const [loading, setLoading] = useState(true);
 
   // Compute + guards
@@ -120,7 +121,9 @@ export default function ResultPage() {
       const res = await fetch(url, { credentials: "include" });
       if (res.ok) {
         const data = await res.json();
-        const normalized: InterviewResult = Array.isArray(data) ? data[0] : data;
+        const normalized: InterviewResult = Array.isArray(data)
+          ? data[0]
+          : data;
 
         if (normalized) {
           // ensure percentage
@@ -134,7 +137,7 @@ export default function ResultPage() {
           if (merged.session_id) {
             localStorage.setItem(
               `interview_result_${merged.session_id}`,
-              JSON.stringify(merged)
+              JSON.stringify(merged),
             );
             localStorage.setItem("latest_interview_session", merged.session_id);
           }
@@ -228,7 +231,9 @@ export default function ResultPage() {
               {result.total_score}/{result.max_score}
             </div>
             <div className="text-left">
-              <div className={`text-2xl font-semibold ${getScoreColor(percentage)}`}>
+              <div
+                className={`text-2xl font-semibold ${getScoreColor(percentage)}`}
+              >
                 {percentage.toFixed(1)}%
               </div>
               <div className="text-lg text-muted-foreground">
@@ -250,7 +255,9 @@ export default function ResultPage() {
         {/* Strengths and Areas for Improvement */}
         <div className="grid md:grid-cols-2 gap-8">
           <div className="bg-card rounded-lg shadow-lg p-8">
-            <h2 className="text-2xl font-bold mb-4 text-green-600">Strengths</h2>
+            <h2 className="text-2xl font-bold mb-4 text-green-600">
+              Strengths
+            </h2>
             <ul className="space-y-2">
               {result.strengths.map((strength, idx) => (
                 <li key={idx} className="flex items-start">
@@ -284,20 +291,28 @@ export default function ResultPage() {
               <div key={idx} className="border rounded-lg p-6">
                 <div className="flex justify-between items-start mb-4">
                   <h3 className="text-lg font-semibold">Question {idx + 1}</h3>
-                  <div className={`text-lg font-bold ${getScoreColor(feedback.score)}`}>
+                  <div
+                    className={`text-lg font-bold ${getScoreColor(feedback.score)}`}
+                  >
                     {feedback.score}/100
                   </div>
                 </div>
 
                 <div className="mb-4">
                   <p className="font-medium mb-2">Question:</p>
-                  <p className="text-muted-foreground mb-4">{feedback.question}</p>
+                  <p className="text-muted-foreground mb-4">
+                    {feedback.question}
+                  </p>
 
                   <p className="font-medium mb-2">Your Answer:</p>
-                  <p className="text-muted-foreground mb-4">{feedback.answer}</p>
+                  <p className="text-muted-foreground mb-4">
+                    {feedback.answer}
+                  </p>
 
                   <p className="font-medium mb-2">Feedback:</p>
-                  <p className="text-muted-foreground mb-4">{feedback.feedback}</p>
+                  <p className="text-muted-foreground mb-4">
+                    {feedback.feedback}
+                  </p>
 
                   {/* Transcript snippet (best-effort relevance) */}
                   {result.transcript && (
@@ -305,11 +320,20 @@ export default function ResultPage() {
                       <p className="font-medium mb-2">Conversation:</p>
                       <div className="space-y-2 max-h-48 overflow-y-auto bg-gray-50 rounded-lg p-3">
                         {result.transcript.map((m, mIdx) => {
-                          const messageContent = (m.content || "").toLowerCase();
-                          const questionContent = (feedback.question || "").toLowerCase();
+                          const messageContent = (
+                            m.content || ""
+                          ).toLowerCase();
+                          const questionContent = (
+                            feedback.question || ""
+                          ).toLowerCase();
                           const isRelevant =
-                            questionContent.length > 0 &&
-                            messageContent.includes(questionContent.slice(0, Math.min(20, questionContent.length))) ||
+                            (questionContent.length > 0 &&
+                              messageContent.includes(
+                                questionContent.slice(
+                                  0,
+                                  Math.min(20, questionContent.length),
+                                ),
+                              )) ||
                             (m.role === "user" && mIdx > 0);
                           if (!isRelevant) return null;
 
@@ -327,7 +351,9 @@ export default function ResultPage() {
                                   <div className="font-medium text-xs mb-1">
                                     {m.role === "user" ? "You" : "Interviewer"}
                                   </div>
-                                  <div className="text-xs text-gray-700">{m.content}</div>
+                                  <div className="text-xs text-gray-700">
+                                    {m.content}
+                                  </div>
                                 </div>
                                 {m.timestamp && (
                                   <div className="text-xs text-gray-500 ml-2">
@@ -345,20 +371,30 @@ export default function ResultPage() {
 
                 <div className="grid md:grid-cols-2 gap-4">
                   <div>
-                    <h4 className="font-medium text-green-600 mb-2">Strengths:</h4>
+                    <h4 className="font-medium text-green-600 mb-2">
+                      Strengths:
+                    </h4>
                     <ul className="space-y-1">
                       {feedback.strengths.map((s, sIdx) => (
-                        <li key={sIdx} className="text-sm text-muted-foreground">
+                        <li
+                          key={sIdx}
+                          className="text-sm text-muted-foreground"
+                        >
                           • {s}
                         </li>
                       ))}
                     </ul>
                   </div>
                   <div>
-                    <h4 className="font-medium text-orange-600 mb-2">Weaknesses:</h4>
+                    <h4 className="font-medium text-orange-600 mb-2">
+                      Weaknesses:
+                    </h4>
                     <ul className="space-y-1">
                       {feedback.weaknesses.map((w, wIdx) => (
-                        <li key={wIdx} className="text-sm text-muted-foreground">
+                        <li
+                          key={wIdx}
+                          className="text-sm text-muted-foreground"
+                        >
                           • {w}
                         </li>
                       ))}
@@ -373,7 +409,9 @@ export default function ResultPage() {
         {/* Enhanced Face Analysis Results */}
         {result.face_analysis && (
           <div className="bg-card rounded-lg shadow-lg p-8">
-            <h2 className="text-2xl font-bold mb-6">Enhanced Face Analysis Results</h2>
+            <h2 className="text-2xl font-bold mb-6">
+              Enhanced Face Analysis Results
+            </h2>
             <div className="grid md:grid-cols-2 gap-6">
               {/* Face Detection */}
               <div className="space-y-4">
@@ -383,7 +421,9 @@ export default function ResultPage() {
                     <span className="font-medium">Face Detected:</span>
                     <span
                       className={
-                        result.face_analysis.face_detected ? "text-green-600" : "text-red-600"
+                        result.face_analysis.face_detected
+                          ? "text-green-600"
+                          : "text-red-600"
                       }
                     >
                       {result.face_analysis.face_detected ? "Yes" : "No"}
@@ -398,7 +438,8 @@ export default function ResultPage() {
                   <div className="flex justify-between">
                     <span className="font-medium">Confidence:</span>
                     <span className="text-muted-foreground">
-                      {Math.round((result.face_analysis.confidence ?? 0) * 100)}%
+                      {Math.round((result.face_analysis.confidence ?? 0) * 100)}
+                      %
                     </span>
                   </div>
                 </div>
@@ -415,14 +456,16 @@ export default function ResultPage() {
                         !result.face_analysis.engagement_level
                           ? "text-gray-600"
                           : result.face_analysis.engagement_level === "high"
-                          ? "text-green-600"
-                          : result.face_analysis.engagement_level === "medium"
-                          ? "text-yellow-600"
-                          : "text-red-600"
+                            ? "text-green-600"
+                            : result.face_analysis.engagement_level === "medium"
+                              ? "text-yellow-600"
+                              : "text-red-600"
                       }`}
                     >
                       {result.face_analysis.engagement_level
-                        ? result.face_analysis.engagement_level.charAt(0).toUpperCase() +
+                        ? result.face_analysis.engagement_level
+                            .charAt(0)
+                            .toUpperCase() +
                           result.face_analysis.engagement_level.slice(1)
                         : "N/A"}
                     </span>
@@ -430,7 +473,10 @@ export default function ResultPage() {
                   <div className="flex justify-between">
                     <span className="font-medium">Attention Score:</span>
                     <span className="text-muted-foreground">
-                      {Math.round((result.face_analysis.attention_score ?? 0) * 100)}%
+                      {Math.round(
+                        (result.face_analysis.attention_score ?? 0) * 100,
+                      )}
+                      %
                     </span>
                   </div>
                 </div>
@@ -447,13 +493,16 @@ export default function ResultPage() {
                         className={`font-medium ${
                           result.face_analysis.eye_tracking.eye_state === "open"
                             ? "text-green-600"
-                            : result.face_analysis.eye_tracking.eye_state === "closed"
-                            ? "text-red-600"
-                            : "text-yellow-600"
+                            : result.face_analysis.eye_tracking.eye_state ===
+                                "closed"
+                              ? "text-red-600"
+                              : "text-yellow-600"
                         }`}
                       >
                         {result.face_analysis.eye_tracking.eye_state
-                          ? result.face_analysis.eye_tracking.eye_state.charAt(0).toUpperCase() +
+                          ? result.face_analysis.eye_tracking.eye_state
+                              .charAt(0)
+                              .toUpperCase() +
                             result.face_analysis.eye_tracking.eye_state.slice(1)
                           : "N/A"}
                       </span>
@@ -462,12 +511,14 @@ export default function ResultPage() {
                       <span className="font-medium">Eye Tracking:</span>
                       <span
                         className={`font-medium ${
-                          result.face_analysis.eye_tracking.eye_tracking === "looking_at_screen"
+                          result.face_analysis.eye_tracking.eye_tracking ===
+                          "looking_at_screen"
                             ? "text-green-600"
                             : "text-red-600"
                         }`}
                       >
-                        {result.face_analysis.eye_tracking.eye_tracking === "looking_at_screen"
+                        {result.face_analysis.eye_tracking.eye_tracking ===
+                        "looking_at_screen"
                           ? "Looking at Screen"
                           : "Looking Away"}
                       </span>
@@ -475,8 +526,11 @@ export default function ResultPage() {
                     <div className="flex justify-between">
                       <span className="font-medium">Eye Aspect Ratio:</span>
                       <span className="text-muted-foreground">
-                        {typeof result.face_analysis.eye_tracking.eye_aspect_ratio === "number"
-                          ? result.face_analysis.eye_tracking.eye_aspect_ratio.toFixed(3)
+                        {typeof result.face_analysis.eye_tracking
+                          .eye_aspect_ratio === "number"
+                          ? result.face_analysis.eye_tracking.eye_aspect_ratio.toFixed(
+                              3,
+                            )
                           : "N/A"}
                       </span>
                     </div>
@@ -498,7 +552,9 @@ export default function ResultPage() {
                             : "text-red-600"
                         }`}
                       >
-                        {result.face_analysis.head_pose.looking_at_screen ? "Yes" : "No"}
+                        {result.face_analysis.head_pose.looking_at_screen
+                          ? "Yes"
+                          : "No"}
                       </span>
                     </div>
                     <div className="flex justify-between">
@@ -510,7 +566,8 @@ export default function ResultPage() {
                     <div className="flex justify-between">
                       <span className="font-medium">Gaze Distance:</span>
                       <span className="text-muted-foreground">
-                        {typeof result.face_analysis.head_pose.gaze_distance === "number"
+                        {typeof result.face_analysis.head_pose.gaze_distance ===
+                        "number"
                           ? `${Math.round(result.face_analysis.head_pose.gaze_distance)}px`
                           : "N/A"}
                       </span>
@@ -522,18 +579,22 @@ export default function ResultPage() {
               {/* Multiple Faces */}
               {result.face_analysis.multiple_faces && (
                 <div className="space-y-4">
-                  <h3 className="text-lg font-semibold">Multiple Face Detection</h3>
+                  <h3 className="text-lg font-semibold">
+                    Multiple Face Detection
+                  </h3>
                   <div className="space-y-2">
                     <div className="flex justify-between">
                       <span className="font-medium">Multiple Faces:</span>
                       <span
                         className={`font-medium ${
-                          result.face_analysis.multiple_faces.multiple_faces_detected
+                          result.face_analysis.multiple_faces
+                            .multiple_faces_detected
                             ? "text-red-600"
                             : "text-green-600"
                         }`}
                       >
-                        {result.face_analysis.multiple_faces.multiple_faces_detected
+                        {result.face_analysis.multiple_faces
+                          .multiple_faces_detected
                           ? "Detected"
                           : "None"}
                       </span>
@@ -557,12 +618,14 @@ export default function ResultPage() {
                       <span className="font-medium">Screen Switching:</span>
                       <span
                         className={`font-medium ${
-                          result.face_analysis.screen_sharing.screen_sharing_detected
+                          result.face_analysis.screen_sharing
+                            .screen_sharing_detected
                             ? "text-red-600"
                             : "text-green-600"
                         }`}
                       >
-                        {result.face_analysis.screen_sharing.screen_sharing_detected
+                        {result.face_analysis.screen_sharing
+                          .screen_sharing_detected
                           ? "Detected"
                           : "None"}
                       </span>
@@ -570,11 +633,9 @@ export default function ResultPage() {
                     <div className="flex justify-between">
                       <span className="font-medium">Last Activity:</span>
                       <span className="text-muted-foreground">
-                        {typeof result.face_analysis.screen_sharing.time_since_last_activity ===
-                        "number"
-                          ? `${Math.round(
-                              result.face_analysis.screen_sharing.time_since_last_activity
-                            )}s ago`
+                        {typeof result.face_analysis.screen_sharing
+                          .time_since_last_activity === "number"
+                          ? `${Math.round(result.face_analysis.screen_sharing.time_since_last_activity)}s ago`
                           : "N/A"}
                       </span>
                     </div>
@@ -605,7 +666,9 @@ export default function ResultPage() {
             {result.face_analysis.recommendations &&
               result.face_analysis.recommendations.length > 0 && (
                 <div className="mt-6">
-                  <h3 className="text-lg font-semibold mb-3">Face Analysis Recommendations</h3>
+                  <h3 className="text-lg font-semibold mb-3">
+                    Face Analysis Recommendations
+                  </h3>
                   <ul className="space-y-2">
                     {result.face_analysis.recommendations.map((rec, i) => (
                       <li key={i} className="flex items-start">
@@ -631,9 +694,7 @@ export default function ResultPage() {
                   <div className="flex justify-between">
                     <span className="font-medium">Speaking:</span>
                     <span
-                      className={`font-medium ${
-                        result.voice_analysis.speaking ? "text-green-600" : "text-red-600"
-                      }`}
+                      className={`font-medium ${result.voice_analysis.speaking ? "text-green-600" : "text-red-600"}`}
                     >
                       {result.voice_analysis.speaking ? "Yes" : "No"}
                     </span>
@@ -642,7 +703,10 @@ export default function ResultPage() {
                     <div className="flex justify-between">
                       <span className="font-medium">Speech Rate:</span>
                       <span className="text-muted-foreground">
-                        {Math.round((result.voice_analysis.speech_rate ?? 0) as number)} WPM
+                        {Math.round(
+                          (result.voice_analysis.speech_rate ?? 0) as number,
+                        )}{" "}
+                        WPM
                       </span>
                     </div>
                   )}
@@ -650,7 +714,10 @@ export default function ResultPage() {
                     <div className="flex justify-between">
                       <span className="font-medium">Volume Level:</span>
                       <span className="text-muted-foreground">
-                        {Math.round((result.voice_analysis.volume_level ?? 0) * 100)}%
+                        {Math.round(
+                          (result.voice_analysis.volume_level ?? 0) * 100,
+                        )}
+                        %
                       </span>
                     </div>
                   )}
@@ -674,8 +741,8 @@ export default function ResultPage() {
                         result.voice_analysis.nervousness > 0.7
                           ? "text-red-600"
                           : result.voice_analysis.nervousness > 0.4
-                          ? "text-yellow-600"
-                          : "text-green-600"
+                            ? "text-yellow-600"
+                            : "text-green-600"
                       }`}
                     >
                       {Math.round(result.voice_analysis.nervousness * 100)}%
@@ -683,9 +750,14 @@ export default function ResultPage() {
                   </div>
                   {"voice_quality" in result.voice_analysis && (
                     <div className="flex justify-between">
-                      <span className="font-medium">Voice Quality (proxy):</span>
+                      <span className="font-medium">
+                        Voice Quality (proxy):
+                      </span>
                       <span className="text-muted-foreground">
-                        {Math.round((result.voice_analysis.voice_quality ?? 0) * 100)}%
+                        {Math.round(
+                          (result.voice_analysis.voice_quality ?? 0) * 100,
+                        )}
+                        %
                       </span>
                     </div>
                   )}

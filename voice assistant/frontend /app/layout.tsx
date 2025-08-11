@@ -1,39 +1,39 @@
-import { Public_Sans } from 'next/font/google';
-import localFont from 'next/font/local';
-import { headers } from 'next/headers';
-import { getAppConfig } from '@/lib/utils';
-import { Providers } from '@/components/providers';
-import './globals.css';
+import { Public_Sans } from "next/font/google";
+import localFont from "next/font/local";
+import { headers } from "next/headers";
+import { getAppConfig } from "@/lib/utils";
+import { Providers } from "@/components/providers";
+import "./globals.css";
 
 const publicSans = Public_Sans({
-  variable: '--font-public-sans',
-  subsets: ['latin'],
+  variable: "--font-public-sans",
+  subsets: ["latin"],
 });
 
 const commitMono = localFont({
   src: [
     {
-      path: './fonts/CommitMono-400-Regular.otf',
-      weight: '400',
-      style: 'normal',
+      path: "./fonts/CommitMono-400-Regular.otf",
+      weight: "400",
+      style: "normal",
     },
     {
-      path: './fonts/CommitMono-700-Regular.otf',
-      weight: '700',
-      style: 'normal',
+      path: "./fonts/CommitMono-700-Regular.otf",
+      weight: "700",
+      style: "normal",
     },
     {
-      path: './fonts/CommitMono-400-Italic.otf',
-      weight: '400',
-      style: 'italic',
+      path: "./fonts/CommitMono-400-Italic.otf",
+      weight: "400",
+      style: "italic",
     },
     {
-      path: './fonts/CommitMono-700-Italic.otf',
-      weight: '700',
-      style: 'italic',
+      path: "./fonts/CommitMono-700-Italic.otf",
+      weight: "700",
+      style: "italic",
     },
   ],
-  variable: '--font-commit-mono',
+  variable: "--font-commit-mono",
 });
 
 interface RootLayoutProps {
@@ -45,11 +45,11 @@ export default async function RootLayout({ children }: RootLayoutProps) {
   const { accent, accentDark, pageDescription } = await getAppConfig(hdrs);
 
   const styles = [
-    accent ? `:root { --primary: ${accent}; }` : '',
-    accentDark ? `.dark { --primary: ${accentDark}; }` : '',
+    accent ? `:root { --primary: ${accent}; }` : "",
+    accentDark ? `.dark { --primary: ${accentDark}; }` : "",
   ]
     .filter(Boolean)
-    .join('\n');
+    .join("\n");
 
   return (
     <html lang="en" className="light" suppressHydrationWarning>
@@ -60,9 +60,7 @@ export default async function RootLayout({ children }: RootLayoutProps) {
       <body
         className={`${publicSans.variable} ${commitMono.variable} overflow-x-hidden antialiased`}
       >
-        <Providers>
-          {children}
-        </Providers>
+        <Providers>{children}</Providers>
       </body>
     </html>
   );

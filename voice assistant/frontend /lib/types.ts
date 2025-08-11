@@ -1,11 +1,11 @@
-import type { TranscriptionSegment } from 'livekit-client';
+import type { TranscriptionSegment } from "livekit-client";
 
 export interface CombinedTranscription extends TranscriptionSegment {
-  role: 'assistant' | 'user';
+  role: "assistant" | "user";
   receivedAtMediaTimestamp: number;
   receivedAt: number;
 }
-export type ThemeMode = 'dark' | 'light' | 'system';
+export type ThemeMode = "dark" | "light" | "system";
 
 export interface AppConfig {
   pageDescription: string;
@@ -23,8 +23,8 @@ export interface AppConfig {
 
 export interface SandboxConfig {
   [key: string]:
-  | { type: 'string'; value: string }
-  | { type: 'number'; value: number }
-  | { type: 'boolean'; value: boolean }
-  | null;
+    | { type: "string"; value: string }
+    | { type: "number"; value: number }
+    | { type: "boolean"; value: boolean }
+    | null;
 }

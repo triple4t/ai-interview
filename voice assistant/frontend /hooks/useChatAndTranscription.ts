@@ -1,11 +1,11 @@
-import { useMemo } from 'react';
+import { useMemo } from "react";
 import {
   type ReceivedChatMessage,
   type TextStreamData,
   useChat,
   useRoomContext,
   useTranscriptions,
-} from '@livekit/components-react';
+} from "@livekit/components-react";
 
 export default function useChatAndTranscription() {
   const transcriptions: TextStreamData[] = useTranscriptions();

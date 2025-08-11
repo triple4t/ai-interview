@@ -1,17 +1,17 @@
-'use client';
+"use client";
 
-import { cva } from 'class-variance-authority';
-import { LocalAudioTrack, LocalVideoTrack } from 'livekit-client';
-import { useMaybeRoomContext } from '@livekit/components-react';
+import { cva } from "class-variance-authority";
+import { LocalAudioTrack, LocalVideoTrack } from "livekit-client";
+import { useMaybeRoomContext } from "@livekit/components-react";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from '@/components/ui/select';
-import { cn } from '@/lib/utils';
-import React from 'react';
+} from "@/components/ui/select";
+import { cn } from "@/lib/utils";
+import React from "react";
 
 type DeviceSelectProps = React.ComponentProps<typeof SelectTrigger> & {
   kind: MediaDeviceKind;
@@ -21,25 +21,25 @@ type DeviceSelectProps = React.ComponentProps<typeof SelectTrigger> & {
   initialSelection?: string;
   onActiveDeviceChange?: (deviceId: string) => void;
   onDeviceListChange?: (devices: MediaDeviceInfo[]) => void;
-  variant?: 'default' | 'small';
+  variant?: "default" | "small";
 };
 
 const selectVariants = cva(
   [
-    'w-full rounded-full px-3 py-2 text-sm cursor-pointer',
-    'disabled:not-allowed hover:bg-button-hover focus:bg-button-hover',
+    "w-full rounded-full px-3 py-2 text-sm cursor-pointer",
+    "disabled:not-allowed hover:bg-button-hover focus:bg-button-hover",
   ],
   {
     variants: {
       size: {
-        default: 'w-[180px]',
-        sm: 'w-auto',
+        default: "w-[180px]",
+        sm: "w-auto",
       },
     },
     defaultVariants: {
-      size: 'default',
+      size: "default",
     },
-  }
+  },
 );
 
 export function DeviceSelect({
@@ -53,7 +53,7 @@ export function DeviceSelect({
   ...props
 }: DeviceSelectProps) {
   // Temporarily disable the entire component to prevent infinite loops
-  console.log('DeviceSelect rendered for kind:', kind);
+  console.log("DeviceSelect rendered for kind:", kind);
   return null;
 
   /*

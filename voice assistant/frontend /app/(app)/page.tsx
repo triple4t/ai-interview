@@ -1,4 +1,4 @@
-import { InterviewAssistant } from '@/components/interview-assistant';
+import { InterviewAssistant } from "@/components/interview-assistant";
 
 export default function Page() {
   return <InterviewAssistant />;

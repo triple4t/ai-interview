@@ -1,14 +1,14 @@
-import * as React from 'react';
-import { Track } from 'livekit-client';
+import * as React from "react";
+import { Track } from "livekit-client";
 import {
   type TrackReferenceOrPlaceholder,
   useLocalParticipant,
   usePersistentUserChoices,
   useRoomContext,
   useTrackToggle,
-} from '@livekit/components-react';
-import { usePublishPermissions } from './use-publish-permissions';
-import { safeDisconnect } from '@/lib/room-utils';
+} from "@livekit/components-react";
+import { usePublishPermissions } from "./use-publish-permissions";
+import { safeDisconnect } from "@/lib/room-utils";
 
 export interface ControlBarControls {
   microphone?: boolean;
@@ -29,13 +29,17 @@ export interface UseAgentControlBarReturn {
   visibleControls: ControlBarControls;
   microphoneToggle: ReturnType<typeof useTrackToggle<Track.Source.Microphone>>;
   cameraToggle: ReturnType<typeof useTrackToggle<Track.Source.Camera>>;
-  screenShareToggle: ReturnType<typeof useTrackToggle<Track.Source.ScreenShare>>;
+  screenShareToggle: ReturnType<
+    typeof useTrackToggle<Track.Source.ScreenShare>
+  >;
   handleDisconnect: () => void;
   handleAudioDeviceChange: (deviceId: string) => void;
   handleVideoDeviceChange: (deviceId: string) => void;
 }
 
-export function useAgentControlBar(props: UseAgentControlBarProps = {}): UseAgentControlBarReturn {
+export function useAgentControlBar(
+  props: UseAgentControlBarProps = {},
+): UseAgentControlBarReturn {
   const { controls, saveUserChoices = true } = props;
   const visibleControls = {
     leave: true,
@@ -47,15 +51,18 @@ export function useAgentControlBar(props: UseAgentControlBarProps = {}): UseAgen
 
   const microphoneToggle = useTrackToggle({
     source: Track.Source.Microphone,
-    onDeviceError: (error) => props.onDeviceError?.({ source: Track.Source.Microphone, error }),
+    onDeviceError: (error) =>
+      props.onDeviceError?.({ source: Track.Source.Microphone, error }),
   });
   const cameraToggle = useTrackToggle({
     source: Track.Source.Camera,
-    onDeviceError: (error) => props.onDeviceError?.({ source: Track.Source.Camera, error }),
+    onDeviceError: (error) =>
+      props.onDeviceError?.({ source: Track.Source.Camera, error }),
   });
   const screenShareToggle = useTrackToggle({
     source: Track.Source.ScreenShare,
-    onDeviceError: (error) => props.onDeviceError?.({ source: Track.Source.ScreenShare, error }),
+    onDeviceError: (error) =>
+      props.onDeviceError?.({ source: Track.Source.ScreenShare, error }),
   });
 
   const micTrackRef = React.useMemo(() => {
@@ -82,22 +89,22 @@ export function useAgentControlBar(props: UseAgentControlBarProps = {}): UseAgen
 
   const handleDisconnect = React.useCallback(async () => {
     if (room) {
-      await safeDisconnect(room, 'agent-control-bar');
+      await safeDisconnect(room, "agent-control-bar");
     }
   }, [room]);
 
   const handleAudioDeviceChange = React.useCallback(
     (deviceId: string) => {
-      saveAudioInputDeviceId(deviceId ?? 'default');
+      saveAudioInputDeviceId(deviceId ?? "default");
     },
-    [saveAudioInputDeviceId]
+    [saveAudioInputDeviceId],
   );
 
   const handleVideoDeviceChange = React.useCallback(
     (deviceId: string) => {
-      saveVideoInputDeviceId(deviceId ?? 'default');
+      saveVideoInputDeviceId(deviceId ?? "default");
     },
-    [saveVideoInputDeviceId]
+    [saveVideoInputDeviceId],
   );
 
   const handleToggleCamera = React.useCallback(
@@ -109,7 +116,7 @@ export function useAgentControlBar(props: UseAgentControlBarProps = {}): UseAgen
       // persist video input enabled preference
       saveVideoInputEnabled(enabled ?? !cameraToggle.enabled);
     },
-    [cameraToggle, screenShareToggle, saveVideoInputEnabled]
+    [cameraToggle, screenShareToggle, saveVideoInputEnabled],
   );
 
   const handleToggleMicrophone = React.useCallback(
@@ -118,7 +125,7 @@ export function useAgentControlBar(props: UseAgentControlBarProps = {}): UseAgen
       // persist audio input enabled preference
       saveAudioInputEnabled(enabled ?? !microphoneToggle.enabled);
     },
-    [microphoneToggle, saveAudioInputEnabled]
+    [microphoneToggle, saveAudioInputEnabled],
   );
 
   const handleToggleScreenShare = React.useCallback(
@@ -128,7 +135,7 @@ export function useAgentControlBar(props: UseAgentControlBarProps = {}): UseAgen
       }
       await screenShareToggle.toggle(enabled);
     },
-    [cameraToggle, screenShareToggle]
+    [cameraToggle, screenShareToggle],
   );
 
   return {

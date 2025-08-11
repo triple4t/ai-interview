@@ -5,29 +5,34 @@ A comprehensive AI-powered interview practice platform built with Next.js, LiveK
 ## Features
 
 ### 🔐 Authentication
+
 - User registration and login system
 - Secure session management
 - User profile management
 
 ### 📄 Resume Upload & Analysis
+
 - Drag-and-drop resume upload
 - Support for PDF, DOC, and DOCX formats
 - AI-powered resume parsing
 - Skills and experience extraction
 
 ### 🎯 Job Recommendations
+
 - Personalized job matching based on resume
 - Match percentage scoring
 - Detailed job descriptions
 - Company and location information
 
 ### 🎤 AI Interview Practice
+
 - Voice-to-voice AI interviews
 - Real-time conversation with AI
 - Job-specific interview questions
 - Live transcription and feedback
 
 ### 📊 Interview Preparation
+
 - Equipment setup and testing
 - Microphone and camera permissions
 - Interview tips and guidelines
@@ -46,7 +51,7 @@ A comprehensive AI-powered interview practice platform built with Next.js, LiveK
 
 ### Prerequisites
 
-- Node.js 18+ 
+- Node.js 18+
 - pnpm (recommended) or npm
 - LiveKit account and credentials
 - OpenAI Azure API access
@@ -55,19 +60,22 @@ A comprehensive AI-powered interview practice platform built with Next.js, LiveK
 
 1. Clone the repository
 2. Install dependencies:
+
    ```bash
    cd voice-assistant/frontend
    pnpm install
    ```
 
 3. Set up environment variables:
+
    ```bash
    cp .env.example .env.local
    ```
-   
+
    Add your LiveKit and OpenAI credentials to `.env.local`
 
 4. Start the development server:
+
    ```bash
    pnpm dev
    ```
@@ -106,37 +114,46 @@ components/
 ## Key Components
 
 ### InterviewAssistant
+
 The main component that orchestrates the entire interview flow, managing state and view transitions.
 
 ### ResumeUpload
+
 Handles file upload with drag-and-drop support, file validation, and AI-powered resume analysis.
 
 ### JobRecommendations
+
 Displays personalized job matches with match percentages and detailed information.
 
 ### InterviewPreparation
+
 Manages equipment setup, permissions, and provides interview tips before starting.
 
 ## Customization
 
 ### Styling
+
 The app uses Tailwind CSS with a custom design system. Colors and themes can be modified in `app/globals.css`.
 
 ### AI Integration
+
 The interview AI is powered by OpenAI Azure API through LiveKit. Customize the AI behavior by modifying the backend API.
 
 ### Job Matching
+
 Job recommendations are currently mocked. Integrate with real job APIs (Indeed, LinkedIn, etc.) for production use.
 
 ## Development
 
 ### Adding New Features
+
 1. Create new components in the appropriate directory
 2. Update the `InterviewAssistant` component to handle new views
 3. Add necessary types to `lib/types.ts`
 4. Update the progress bar if adding new steps
 
 ### Testing
+
 ```bash
 # Run linting
 pnpm lint
@@ -170,4 +187,4 @@ pnpm start
 
 ## License
 
-This project is licensed under the MIT License. 
+This project is licensed under the MIT License.

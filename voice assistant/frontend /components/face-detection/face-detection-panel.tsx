@@ -70,7 +70,7 @@ export const FaceDetectionPanel = forwardRef<
     shouldStartCamera = false,
     onAnalysisDataChange,
   },
-  ref
+  ref,
 ) {
   const [isConnected, setIsConnected] = useState(false);
   const [isConnecting, setIsConnecting] = useState(false);
@@ -87,7 +87,7 @@ export const FaceDetectionPanel = forwardRef<
   const pingTimerRef = useRef<NodeJS.Timeout | null>(null);
   const lastSentRef = useRef<number>(0);
   const clientId = useRef(
-    `client_${Date.now()}_${Math.random().toString(36).slice(2, 11)}`
+    `client_${Date.now()}_${Math.random().toString(36).slice(2, 11)}`,
   );
   const retryCountRef = useRef(0);
   const MAX_RETRIES = 3;
@@ -188,7 +188,7 @@ export const FaceDetectionPanel = forwardRef<
               timestamp: Date.now(),
               client_id: clientId.current,
             },
-          })
+          }),
         );
         lastSentRef.current = now;
       } catch {}
@@ -226,7 +226,7 @@ export const FaceDetectionPanel = forwardRef<
     } catch (err) {
       console.error("Camera error:", err);
       setError(
-        "Failed to access camera. Please allow permissions and try again."
+        "Failed to access camera. Please allow permissions and try again.",
       );
       stopCamera();
     }
@@ -384,9 +384,7 @@ export const FaceDetectionPanel = forwardRef<
               {/* Connection Status */}
               <div className="flex items-center gap-2">
                 <div
-                  className={`w-3 h-3 rounded-full ${
-                    isConnected ? "bg-green-500" : "bg-red-500"
-                  }`}
+                  className={`w-3 h-3 rounded-full ${isConnected ? "bg-green-500" : "bg-red-500"}`}
                 />
                 <span className="text-sm font-medium">
                   {isConnected ? "Connected" : "Disconnected"}
@@ -435,7 +433,9 @@ export const FaceDetectionPanel = forwardRef<
                   <div className="flex items-center justify-between">
                     <span className="text-sm font-medium">Face Detected:</span>
                     <Badge
-                      variant={analysisData.face_detected ? "default" : "secondary"}
+                      variant={
+                        analysisData.face_detected ? "default" : "secondary"
+                      }
                     >
                       {analysisData.face_detected ? "Yes" : "No"}
                     </Badge>
@@ -459,7 +459,9 @@ export const FaceDetectionPanel = forwardRef<
                         <Eye size={16} />
                         Eye State:
                       </span>
-                      <Badge className={getEyeStateColor(analysisData.eye_state)}>
+                      <Badge
+                        className={getEyeStateColor(analysisData.eye_state)}
+                      >
                         {analysisData.eye_state}
                       </Badge>
                     </div>
@@ -470,7 +472,7 @@ export const FaceDetectionPanel = forwardRef<
                       <span className="text-sm font-medium">Engagement:</span>
                       <Badge
                         className={getEngagementColor(
-                          analysisData.engagement_level
+                          analysisData.engagement_level,
                         )}
                       >
                         {analysisData.engagement_level}
@@ -516,7 +518,8 @@ export const FaceDetectionPanel = forwardRef<
                                 : "secondary"
                             }
                           >
-                            {analysisData.eye_tracking.eye_tracking || "unknown"}
+                            {analysisData.eye_tracking.eye_tracking ||
+                              "unknown"}
                           </Badge>
                         </div>
                         {typeof analysisData.eye_tracking.eye_aspect_ratio ===
@@ -525,7 +528,7 @@ export const FaceDetectionPanel = forwardRef<
                             <span className="text-xs">Eye Aspect Ratio:</span>
                             <span className="text-xs text-muted-foreground">
                               {analysisData.eye_tracking.eye_aspect_ratio.toFixed(
-                                3
+                                3,
                               )}
                             </span>
                           </div>
@@ -536,7 +539,9 @@ export const FaceDetectionPanel = forwardRef<
                     {analysisData.head_pose && (
                       <div className="space-y-2 mb-3">
                         <div className="flex items-center justify-between">
-                          <span className="text-xs font-medium">Head Pose:</span>
+                          <span className="text-xs font-medium">
+                            Head Pose:
+                          </span>
                           <Badge
                             variant={
                               analysisData.head_pose.looking_at_screen
@@ -552,7 +557,8 @@ export const FaceDetectionPanel = forwardRef<
                           <div className="flex items-center justify-between">
                             <span className="text-xs">Gaze Distance:</span>
                             <span className="text-xs text-muted-foreground">
-                              {Math.round(analysisData.head_pose.gaze_distance)}px
+                              {Math.round(analysisData.head_pose.gaze_distance)}
+                              px
                             </span>
                           </div>
                         )}
@@ -562,7 +568,9 @@ export const FaceDetectionPanel = forwardRef<
                     {analysisData.multiple_faces && (
                       <div className="space-y-2 mb-3">
                         <div className="flex items-center justify-between">
-                          <span className="text-xs font-medium">Face Count:</span>
+                          <span className="text-xs font-medium">
+                            Face Count:
+                          </span>
                           <Badge
                             variant={
                               analysisData.multiple_faces
@@ -574,7 +582,8 @@ export const FaceDetectionPanel = forwardRef<
                             {analysisData.multiple_faces.face_count || 0}
                           </Badge>
                         </div>
-                        {analysisData.multiple_faces.multiple_faces_detected && (
+                        {analysisData.multiple_faces
+                          .multiple_faces_detected && (
                           <div className="text-xs text-red-600">
                             ⚠️ Multiple people detected
                           </div>
@@ -596,8 +605,7 @@ export const FaceDetectionPanel = forwardRef<
                                 : "default"
                             }
                           >
-                            {analysisData.screen_sharing
-                              .screen_sharing_detected
+                            {analysisData.screen_sharing.screen_sharing_detected
                               ? "Switching"
                               : "Focused"}
                           </Badge>
@@ -609,7 +617,7 @@ export const FaceDetectionPanel = forwardRef<
                             <span className="text-xs text-muted-foreground">
                               {Math.round(
                                 analysisData.screen_sharing
-                                  .time_since_last_activity
+                                  .time_since_last_activity,
                               )}
                               s ago
                             </span>
@@ -640,7 +648,7 @@ export const FaceDetectionPanel = forwardRef<
                             <span className="text-xs">Confidence:</span>
                             <span className="text-xs text-muted-foreground">
                               {Math.round(
-                                analysisData.voice_analysis.confidence * 100
+                                analysisData.voice_analysis.confidence * 100,
                               )}
                               %
                             </span>
@@ -652,7 +660,7 @@ export const FaceDetectionPanel = forwardRef<
                             <span className="text-xs">Nervousness:</span>
                             <span className="text-xs text-muted-foreground">
                               {Math.round(
-                                analysisData.voice_analysis.nervousness * 100
+                                analysisData.voice_analysis.nervousness * 100,
                               )}
                               %
                             </span>

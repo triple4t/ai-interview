@@ -1,9 +1,9 @@
 "use client";
 
-import React from 'react';
-import { Button } from '@/components/ui/button';
-import { Camera, CameraSlash, Eye } from '@phosphor-icons/react';
-import { motion } from 'motion/react';
+import React from "react";
+import { Button } from "@/components/ui/button";
+import { Camera, CameraSlash, Eye } from "@phosphor-icons/react";
+import { motion } from "motion/react";
 
 interface FaceDetectionToggleProps {
   isActive: boolean;
@@ -18,7 +18,7 @@ export const FaceDetectionToggle: React.FC<FaceDetectionToggleProps> = ({
   onToggle,
   disabled = false,
   className = "",
-  isCameraRunning = false
+  isCameraRunning = false,
 }) => {
   return (
     <motion.div
@@ -34,10 +34,10 @@ export const FaceDetectionToggle: React.FC<FaceDetectionToggleProps> = ({
         disabled={disabled}
         className={`flex items-center gap-2 transition-all duration-200 ${
           isActive && isCameraRunning
-            ? 'bg-green-600 hover:bg-green-700 text-white'
+            ? "bg-green-600 hover:bg-green-700 text-white"
             : isActive
-            ? 'bg-blue-600 hover:bg-blue-700 text-white'
-            : 'hover:bg-blue-50 hover:border-blue-300'
+              ? "bg-blue-600 hover:bg-blue-700 text-white"
+              : "hover:bg-blue-50 hover:border-blue-300"
         }`}
       >
         {isActive && isCameraRunning ? (
@@ -59,4 +59,4 @@ export const FaceDetectionToggle: React.FC<FaceDetectionToggleProps> = ({
       </Button>
     </motion.div>
   );
-}; 
+};
