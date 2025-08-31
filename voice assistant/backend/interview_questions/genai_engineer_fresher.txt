@@ -1,0 +1,107 @@
+Easy (1-34)
+1) What is an embedding?
+2) What is a vector database?
+3) What is tokenization?
+4) What is a prompt in LLMs?
+5) What is RAG?
+6) What is latency and throughput?
+7) What is a REST API?
+8) What is JSON?
+9) What is a model endpoint?
+10) What is environment variable?
+11) What is an API key and how to keep it secret?
+12) What is cosine similarity?
+13) What is streaming response?
+14) What is caching?
+15) What is rate limiting?
+16) What is function/tool calling?
+17) What is a guardrail?
+18) What is a hallucination?
+19) What is a context window?
+20) What is chunking documents?
+21) What is the difference between training and inference?
+22) What is an evaluation set?
+23) What is precision and recall?
+24) What is a pipeline?
+25) What is logging and monitoring?
+26) What is error handling?
+27) What is version control (Git)?
+28) What is a pull request?
+29) What is HTTPS?
+30) What is JSON schema?
+31) What is data ingestion?
+32) What is few-shot prompting?
+33) What is top-p?
+34) What is temperature?
+
+Medium (35-67)
+35) How would you build a simple RAG retrieval pipeline.
+36) Choose chunk size and overlap.
+37) How would you design embeddings and store in vector DB.
+38) How would you implement search with filters.
+39) How would you add citations and confidence scores.
+40) How would you implement a system prompt template.
+41) How would you add safe tool calling for a weather API.
+42) How would you implement rate limiting and retries.
+43) Cache model responses.
+44) Track token usage and latency.
+45) How would you build a basic eval harness.
+46) How would you add PII redaction to inputs.
+47) Avoid prompt injection basics.
+48) How would you implement structured outputs with JSON schema.
+49) Use streaming to display partial responses.
+50) Compare embedding models for your data.
+51) How would you add a reranker to improve relevance.
+52) How would you implement hybrid search (BM25 + vector).
+53) Handle long documents with map-reduce.
+54) How would you add conversation memory basics.
+55) How would you add telemetry and logging for debugging.
+56) Secure API keys and secrets.
+57) How would you build an ingestion pipeline for new docs.
+58) Handle null/low-score retrieval.
+59) Evaluate hallucinations and coverage.
+60) How would you implement guardrails and content filters.
+61) Optimize cost with caching.
+62) Design a fallback to smaller models.
+63) Use few-shot examples effectively.
+64) How would you implement a dashboard of metrics.
+65) Document architecture and prompts.
+66) How would you add unit tests for retrieval functions.
+67) How would you design a demo UI for the pipeline.
+
+Hard (68-100)
+68) Scale retrieval to multiple corpora.
+69) How would you add tool orchestration with multiple tools.
+70) How would you implement multi-tenant isolation.
+71) How would you add continuous evals in CI.
+72) How would you implement LoRA fine-tuning basics.
+73) How would you add semantic caching and invalidation.
+74) How would you build a privacy-preserving analytics.
+75) How would you implement audit logs for access.
+76) Design a cost budget alerting system.
+77) How would you add adversarial evals.
+78) How would you implement structured extraction at scale.
+79) How would you build a secure plugin sandbox.
+80) How would you implement redaction and differential privacy.
+81) How would you add multi-modal inputs (image+text) basics.
+82) How would you implement model fallback and hedging.
+83) How would you build a knowledge freshness pipeline.
+84) How would you add red-team exercises.
+85) How would you implement governance for prompt changes.
+86) How would you build a token budget planner.
+87) How would you implement disaster recovery for vector DB.
+88) How would you add real-time streaming to many users.
+89) How would you implement data retention policies.
+90) How would you build observability with traces.
+91) How would you implement KV cache sharing for speed.
+92) How would you add on-call runbooks and playbooks.
+93) Design a roadmap for scaling.
+94) How would you build cost-aware routing.
+95) How would you implement policy engine for outputs.
+96) How would you add provenance and watermarking basics.
+97) How would you implement a kill switch and feature flags.
+98) How would you build a safe webhook receiver.
+99) How would you implement continuous ingestion.
+100) How would you design a platform vision.
+
+

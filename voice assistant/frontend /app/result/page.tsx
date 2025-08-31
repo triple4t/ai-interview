@@ -62,9 +62,26 @@ export interface InterviewResult {
     screen_sharing?: {
       screen_sharing_detected: boolean;
       time_since_last_activity: number;
+      switching_reason?: string[];
     };
     suspicious_behavior: string[];
     recommendations: string[];
+    mobile_devices?: {
+      mobile_devices_detected: boolean;
+      device_count: number;
+      devices?: Array<{
+        type: string;
+        confidence: number;
+      }>;
+    };
+    suspicious_objects?: {
+      suspicious_objects_detected: boolean;
+      object_count: number;
+      objects?: Array<{
+        type: string;
+        confidence: number;
+      }>;
+    };
   };
   voice_analysis?: {
     speaking: boolean;
@@ -340,11 +357,10 @@ export default function ResultPage() {
                           return (
                             <div
                               key={mIdx}
-                              className={`p-2 rounded text-sm ${
-                                m.role === "user"
-                                  ? "bg-blue-100 border-l-2 border-blue-400"
-                                  : "bg-gray-100 border-l-2 border-gray-400"
-                              }`}
+                              className={`p-2 rounded text-sm ${m.role === "user"
+                                ? "bg-blue-100 border-l-2 border-blue-400"
+                                : "bg-gray-100 border-l-2 border-gray-400"
+                                }`}
                             >
                               <div className="flex items-start justify-between">
                                 <div className="flex-1">
@@ -452,21 +468,20 @@ export default function ResultPage() {
                   <div className="flex justify-between">
                     <span className="font-medium">Engagement Level:</span>
                     <span
-                      className={`font-medium ${
-                        !result.face_analysis.engagement_level
-                          ? "text-gray-600"
-                          : result.face_analysis.engagement_level === "high"
-                            ? "text-green-600"
-                            : result.face_analysis.engagement_level === "medium"
-                              ? "text-yellow-600"
-                              : "text-red-600"
-                      }`}
+                      className={`font-medium ${!result.face_analysis.engagement_level
+                        ? "text-gray-600"
+                        : result.face_analysis.engagement_level === "high"
+                          ? "text-green-600"
+                          : result.face_analysis.engagement_level === "medium"
+                            ? "text-yellow-600"
+                            : "text-red-600"
+                        }`}
                     >
                       {result.face_analysis.engagement_level
                         ? result.face_analysis.engagement_level
-                            .charAt(0)
-                            .toUpperCase() +
-                          result.face_analysis.engagement_level.slice(1)
+                          .charAt(0)
+                          .toUpperCase() +
+                        result.face_analysis.engagement_level.slice(1)
                         : "N/A"}
                     </span>
                   </div>
@@ -490,35 +505,33 @@ export default function ResultPage() {
                     <div className="flex justify-between">
                       <span className="font-medium">Eye State:</span>
                       <span
-                        className={`font-medium ${
-                          result.face_analysis.eye_tracking.eye_state === "open"
-                            ? "text-green-600"
-                            : result.face_analysis.eye_tracking.eye_state ===
-                                "closed"
-                              ? "text-red-600"
-                              : "text-yellow-600"
-                        }`}
+                        className={`font-medium ${result.face_analysis.eye_tracking.eye_state === "open"
+                          ? "text-green-600"
+                          : result.face_analysis.eye_tracking.eye_state ===
+                            "closed"
+                            ? "text-red-600"
+                            : "text-yellow-600"
+                          }`}
                       >
                         {result.face_analysis.eye_tracking.eye_state
                           ? result.face_analysis.eye_tracking.eye_state
-                              .charAt(0)
-                              .toUpperCase() +
-                            result.face_analysis.eye_tracking.eye_state.slice(1)
+                            .charAt(0)
+                            .toUpperCase() +
+                          result.face_analysis.eye_tracking.eye_state.slice(1)
                           : "N/A"}
                       </span>
                     </div>
                     <div className="flex justify-between">
                       <span className="font-medium">Eye Tracking:</span>
                       <span
-                        className={`font-medium ${
-                          result.face_analysis.eye_tracking.eye_tracking ===
+                        className={`font-medium ${result.face_analysis.eye_tracking.eye_tracking ===
                           "looking_at_screen"
-                            ? "text-green-600"
-                            : "text-red-600"
-                        }`}
+                          ? "text-green-600"
+                          : "text-red-600"
+                          }`}
                       >
                         {result.face_analysis.eye_tracking.eye_tracking ===
-                        "looking_at_screen"
+                          "looking_at_screen"
                           ? "Looking at Screen"
                           : "Looking Away"}
                       </span>
@@ -529,8 +542,8 @@ export default function ResultPage() {
                         {typeof result.face_analysis.eye_tracking
                           .eye_aspect_ratio === "number"
                           ? result.face_analysis.eye_tracking.eye_aspect_ratio.toFixed(
-                              3,
-                            )
+                            3,
+                          )
                           : "N/A"}
                       </span>
                     </div>
@@ -546,11 +559,10 @@ export default function ResultPage() {
                     <div className="flex justify-between">
                       <span className="font-medium">Looking at Screen:</span>
                       <span
-                        className={`font-medium ${
-                          result.face_analysis.head_pose.looking_at_screen
-                            ? "text-green-600"
-                            : "text-red-600"
-                        }`}
+                        className={`font-medium ${result.face_analysis.head_pose.looking_at_screen
+                          ? "text-green-600"
+                          : "text-red-600"
+                          }`}
                       >
                         {result.face_analysis.head_pose.looking_at_screen
                           ? "Yes"
@@ -567,7 +579,7 @@ export default function ResultPage() {
                       <span className="font-medium">Gaze Distance:</span>
                       <span className="text-muted-foreground">
                         {typeof result.face_analysis.head_pose.gaze_distance ===
-                        "number"
+                          "number"
                           ? `${Math.round(result.face_analysis.head_pose.gaze_distance)}px`
                           : "N/A"}
                       </span>
@@ -586,12 +598,11 @@ export default function ResultPage() {
                     <div className="flex justify-between">
                       <span className="font-medium">Multiple Faces:</span>
                       <span
-                        className={`font-medium ${
-                          result.face_analysis.multiple_faces
-                            .multiple_faces_detected
-                            ? "text-red-600"
-                            : "text-green-600"
-                        }`}
+                        className={`font-medium ${result.face_analysis.multiple_faces
+                          .multiple_faces_detected
+                          ? "text-red-600"
+                          : "text-green-600"
+                          }`}
                       >
                         {result.face_analysis.multiple_faces
                           .multiple_faces_detected
@@ -609,39 +620,11 @@ export default function ResultPage() {
                 </div>
               )}
 
-              {/* Screen Sharing */}
-              {result.face_analysis.screen_sharing && (
-                <div className="space-y-4">
-                  <h3 className="text-lg font-semibold">Screen Activity</h3>
-                  <div className="space-y-2">
-                    <div className="flex justify-between">
-                      <span className="font-medium">Screen Switching:</span>
-                      <span
-                        className={`font-medium ${
-                          result.face_analysis.screen_sharing
-                            .screen_sharing_detected
-                            ? "text-red-600"
-                            : "text-green-600"
-                        }`}
-                      >
-                        {result.face_analysis.screen_sharing
-                          .screen_sharing_detected
-                          ? "Detected"
-                          : "None"}
-                      </span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="font-medium">Last Activity:</span>
-                      <span className="text-muted-foreground">
-                        {typeof result.face_analysis.screen_sharing
-                          .time_since_last_activity === "number"
-                          ? `${Math.round(result.face_analysis.screen_sharing.time_since_last_activity)}s ago`
-                          : "N/A"}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-              )}
+
+
+
+
+
             </div>
 
             {/* Suspicious Behavior */}
@@ -737,13 +720,12 @@ export default function ResultPage() {
                   <div className="flex justify-between">
                     <span className="font-medium">Nervousness:</span>
                     <span
-                      className={`font-medium ${
-                        result.voice_analysis.nervousness > 0.7
-                          ? "text-red-600"
-                          : result.voice_analysis.nervousness > 0.4
-                            ? "text-yellow-600"
-                            : "text-green-600"
-                      }`}
+                      className={`font-medium ${result.voice_analysis.nervousness > 0.7
+                        ? "text-red-600"
+                        : result.voice_analysis.nervousness > 0.4
+                          ? "text-yellow-600"
+                          : "text-green-600"
+                        }`}
                     >
                       {Math.round(result.voice_analysis.nervousness * 100)}%
                     </span>

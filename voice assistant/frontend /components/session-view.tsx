@@ -133,7 +133,8 @@ export const SessionView = ({
 
   const handleRouterPush = (path: string) => {
     console.log(`🚀 Router.push called with path: ${path}`);
-    router.push(path);
+    // Use window.location.href for hard navigation to prevent refresh issues
+    window.location.href = path;
   };
 
   const [hasNavigated, setHasNavigated] = useState(false);
@@ -252,20 +253,17 @@ export const SessionView = ({
     setHasNavigated(true);
     setIsProcessingInterview(true);
 
+    // Navigate immediately to results page
+    console.log("🚀 Navigating immediately to /result page");
+    handleRouterPush("/result");
+
+    // Process interview data in the background (don't wait for it)
     try {
-      // Process and send interview data before navigating
-      console.log("📊 Processing interview data...");
+      console.log("📊 Processing interview data in background...");
       await processInterviewData();
       console.log("✅ Interview data processed successfully");
-
-      // Navigate directly to results page immediately
-      console.log("🚀 Navigating directly to /result page");
-      handleRouterPush("/result");
     } catch (error) {
       console.error("❌ Error processing interview:", error);
-      // Still navigate to results even if processing fails
-      console.log("🚀 Navigating to /result page despite processing error");
-      handleRouterPush("/result");
     } finally {
       setIsProcessingInterview(false);
     }

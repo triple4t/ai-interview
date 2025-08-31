@@ -1,0 +1,107 @@
+Easy (1-34)
+1) What is a client and a server?
+2) What is an API?
+3) What is HTML used for?
+4) What is CSS used for?
+5) What is JavaScript used for?
+6) What are variables and functions?
+7) What is an array vs an object?
+8) What is Git and why use it?
+9) What is a branch?
+10) What is a pull request?
+11) What is a database table?
+12) What is a primary key?
+13) What is a foreign key?
+14) What is SQL?
+15) What is JSON?
+16) What is HTTP?
+17) What is a status code (200/404/500)?
+18) What is REST?
+19) What is a package manager (npm/pnpm)?
+20) What is Node.js?
+21) What is a framework (React/Next.js)?
+22) What is a component?
+23) What is props vs state?
+24) What is form validation?
+25) What is environment variable?
+26) What is authentication?
+27) What is authorization?
+28) What is a unit test?
+29) What is a commit message?
+30) What is a README?
+31) What is deployment?
+32) What is hosting?
+33) What is debugging?
+34) What is logging?
+
+Medium (35-67)
+35) How would you build a login form with validation.
+36) Fetch data from an API and display it.
+37) How would you add pagination to a list page.
+38) How would you implement search with debounce.
+39) How would you design a CRUD for a simple resource.
+40) Structure a basic backend API.
+41) Design a simple relational schema.
+42) How would you add input validation on server.
+43) Store passwords securely with hashing.
+44) How would you add JWT-based authentication.
+45) Protect routes in Next.js.
+46) Handle file uploads in UI and server.
+47) How would you approach writing unit tests for a function.
+48) How would you add environment-based configs.
+49) How would you implement error handling and error pages.
+50) How would you add simple logging to server.
+51) How would you add health check endpoints.
+52) How would you implement rate limiting.
+53) How would you add caching for a GET endpoint.
+54) Use WebSocket for real-time updates.
+55) How would you set up ESLint and Prettier.
+56) Use TypeScript in frontend and backend.
+57) Avoid XSS and sanitize inputs.
+58) Prevent SQL injection with parameterized queries.
+59) How would you add a loading skeleton UI.
+60) How would you implement i18n basics.
+61) Organize monorepo-like structure.
+62) How would you design a simple CI pipeline.
+63) How would you add API documentation with Swagger.
+64) How would you implement background jobs for emails.
+65) How would you add feature flags for beta features.
+66) Monitor API with basic metrics.
+67) How would you design a rollback plan for releases.
+
+Hard (68-100)
+68) Design a small-scale multi-tenant app.
+69) How would you implement SSR with data fetching.
+70) How would you add GraphQL endpoint and consume from UI.
+71) Design a real-time chat feature.
+72) How would you implement a search with indexing.
+73) Design a rate limiter.
+74) How would you implement a payments flow.
+75) Plan a zero-downtime migration.
+76) How would you build an offline-first PWA.
+77) How would you implement service workers caching.
+78) How would you add a plugin system.
+79) How would you build a telemetry pipeline.
+80) How would you implement RBAC authorization.
+81) How would you build an audit log system.
+82) Design an event-driven architecture.
+83) How would you implement a secure webhook endpoint.
+84) Plan monolith to modular monolith migration.
+85) How would you add feature flags with remote config.
+86) How would you build a dashboard with charts and filters.
+87) How would you implement a data export/import safely.
+88) How would you add tracing and correlation IDs.
+89) Design a testing pyramid.
+90) How would you implement file storage using S3.
+91) How would you build a content moderation pipeline.
+92) How would you implement OAuth login.
+93) Design a public API for third parties.
+94) How would you add canary deploys and rollback.
+95) How would you implement a privacy policy and data deletion.
+96) How would you build a multi-region read architecture.
+97) How would you add analytics with privacy controls.
+98) How would you implement differential privacy basics.
+99) How would you build a dev onboarding guide.
+100) How would you design an incident response plan.
+
+

@@ -102,11 +102,37 @@ export default function JobsPage() {
         {jobRecommendations.length > 0 ? (
           <JobRecommendations
             jobs={jobRecommendations}
-            onJobSelect={(job) => {
-              // Save selected job to localStorage for the interview page
-              localStorage.setItem("selectedJob", JSON.stringify(job));
-              // Navigate to interview page
-              router.push("/interview");
+            onJobSelect={async (job) => {
+              try {
+                // Automatically set the JD file for the LiveKit worker
+                if (job.jdSource) {
+                  const response = await fetch('http://localhost:8000/api/v1/interview/select-jd', {
+                    method: 'POST',
+                    headers: {
+                      'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                      jd_filename: job.jdSource
+                    })
+                  });
+
+                  if (!response.ok) {
+                    console.warn('Failed to set JD file, but continuing with interview');
+                  } else {
+                    console.log('Successfully set JD file for interview');
+                  }
+                }
+
+                // Save selected job to localStorage for the interview page
+                localStorage.setItem("selectedJob", JSON.stringify(job));
+                // Navigate to interview page
+                router.push("/interview");
+              } catch (error) {
+                console.error('Error setting JD file:', error);
+                // Continue with interview even if JD setting fails
+                localStorage.setItem("selectedJob", JSON.stringify(job));
+                router.push("/interview");
+              }
             }}
           />
         ) : (

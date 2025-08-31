@@ -1,0 +1,107 @@
+Easy (1-34)
+1) What does AI stand for?
+2) What is a machine learning model?
+3) What is training data?
+4) What is a dataset?
+5) What is a feature?
+6) What is a label?
+7) What is supervised vs unsupervised learning?
+8) What is NLP?
+9) What is an LLM?
+10) What is a prompt?
+11) What is token?
+12) What is an embedding?
+13) What is a vector database?
+14) What is RAG?
+15) What is a hallucination?
+16) What is an API key?
+17) What is latency?
+18) What is throughput?
+19) What is caching?
+20) What is a model endpoint?
+21) What is JSON?
+22) What is HTTPS?
+23) What is rate limiting?
+24) What is environment variable?
+25) What is a secret?
+26) What is evaluation (evals)?
+27) What is cost per token?
+28) What is streaming response?
+29) What is prompting?
+30) What is top-p?
+31) What is temperature?
+32) What is grounding to documents?
+33) What is chunking?
+34) What is context window?
+
+Medium (35-67)
+35) How would you build a simple RAG chatbot for FAQs.
+36) Choose chunk size and overlap.
+37) Store embeddings in a vector DB and query.
+38) How would you add citations in responses.
+39) Avoid prompt injection basics.
+40) Use a guardrail to filter outputs.
+41) How would you add a system prompt for behavior.
+42) Cache responses to save cost.
+43) How would you implement rate limiting.
+44) Track token usage and latency.
+45) Evaluate answers with a golden set.
+46) How would you implement streaming tokens to UI.
+47) How would you add a function/tool call for weather API.
+48) Structure outputs with JSON schema.
+49) Detect and mask PII.
+50) How would you implement safety filters.
+51) Use few-shot examples in prompts.
+52) How would you implement reranking after retrieval.
+53) Improve recall with query expansion.
+54) Compare embedding models.
+55) Secure API keys in env.
+56) Handle long context with summaries.
+57) How would you add telemetry for prompts.
+58) Use retries with backoff.
+59) How would you implement A/B testing for prompts.
+60) How would you add user conversation memory.
+61) Use hybrid search (BM25 + vectors).
+62) Handle null/irrelevant retrieval.
+63) Design a simple ingestion pipeline.
+64) How would you add admin tools to update knowledge.
+65) Evaluate hallucinations.
+66) Document the system and prompts.
+67) How would you build a demo UI for the bot.
+
+Hard (68-100)
+68) Scale RAG to multiple collections.
+69) How would you build a multi-turn memory system.
+70) How would you add tool orchestration for multiple APIs.
+71) How would you implement safe tool calling.
+72) How would you build domain-specific evals.
+73) How would you add continuous evaluation in CI.
+74) Reduce cost with semantic caching.
+75) How would you implement LoRA fine-tuning basics.
+76) How would you add structured extraction with constraints.
+77) How would you implement triage/fallback across models.
+78) How would you build a trace-based observability.
+79) How would you add multi-tenant isolation.
+80) How would you implement data retention policies.
+81) How would you build an audit log for prompts/outputs.
+82) Design privacy-preserving analytics.
+83) How would you add real-time streaming to many users.
+84) How would you implement a plugin framework.
+85) How would you add automatic redaction.
+86) How would you implement continuous ingestion updates.
+87) How would you build a knowledge freshness strategy.
+88) How would you implement a secure webhook for updates.
+89) How would you add sandbox for third-party tools.
+90) How would you implement evaluation dashboards.
+91) How would you build cost budget alerts.
+92) How would you add governance for prompts.
+93) How would you implement user feedback loop.
+94) How would you add multi-modal inputs (text+image) basics.
+95) How would you implement offline inference strategy.
+96) How would you build a policy engine for outputs.
+97) How would you add content provenance markers.
+98) How would you implement a kill switch for models.
+99) Design a roadmap for scaling the bot.
+100) Document risk and safety plan.
+
+

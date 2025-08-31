@@ -42,6 +42,17 @@ interface AnalysisData {
   screen_sharing?: {
     screen_sharing_detected?: boolean;
     time_since_last_activity?: number;
+    switching_reason?: string[];
+  };
+  mobile_devices?: {
+    mobile_devices_detected?: boolean;
+    device_count?: number;
+    devices?: { type: string; confidence: number }[];
+  };
+  suspicious_objects?: {
+    suspicious_objects_detected?: boolean;
+    object_count?: number;
+    objects?: { type: string; confidence: number }[];
   };
   voice_analysis?: {
     speaking?: boolean;
@@ -100,7 +111,7 @@ export const FaceDetectionPanel = forwardRef<
     if (wsRef.current) {
       try {
         wsRef.current.close();
-      } catch {}
+      } catch { }
       wsRef.current = null;
     }
     setIsConnected(false);
@@ -136,12 +147,12 @@ export const FaceDetectionPanel = forwardRef<
       try {
         videoRef.current.pause();
         videoRef.current.srcObject = null;
-      } catch {}
+      } catch { }
     }
     if (streamRef.current) {
       try {
         streamRef.current.getTracks().forEach((t) => t.stop());
-      } catch {}
+      } catch { }
     }
     streamRef.current = null;
     setCameraStarted(false);
@@ -191,7 +202,7 @@ export const FaceDetectionPanel = forwardRef<
           }),
         );
         lastSentRef.current = now;
-      } catch {}
+      } catch { }
     }
     rafIdRef.current = requestAnimationFrame(frameLoop);
   }, []);
@@ -513,7 +524,7 @@ export const FaceDetectionPanel = forwardRef<
                           <Badge
                             variant={
                               analysisData.eye_tracking.eye_tracking ===
-                              "looking_at_screen"
+                                "looking_at_screen"
                                 ? "default"
                                 : "secondary"
                             }
@@ -524,15 +535,15 @@ export const FaceDetectionPanel = forwardRef<
                         </div>
                         {typeof analysisData.eye_tracking.eye_aspect_ratio ===
                           "number" && (
-                          <div className="flex items-center justify-between">
-                            <span className="text-xs">Eye Aspect Ratio:</span>
-                            <span className="text-xs text-muted-foreground">
-                              {analysisData.eye_tracking.eye_aspect_ratio.toFixed(
-                                3,
-                              )}
-                            </span>
-                          </div>
-                        )}
+                            <div className="flex items-center justify-between">
+                              <span className="text-xs">Eye Aspect Ratio:</span>
+                              <span className="text-xs text-muted-foreground">
+                                {analysisData.eye_tracking.eye_aspect_ratio.toFixed(
+                                  3,
+                                )}
+                              </span>
+                            </div>
+                          )}
                       </div>
                     )}
 
@@ -554,14 +565,14 @@ export const FaceDetectionPanel = forwardRef<
                         </div>
                         {typeof analysisData.head_pose.gaze_distance ===
                           "number" && (
-                          <div className="flex items-center justify-between">
-                            <span className="text-xs">Gaze Distance:</span>
-                            <span className="text-xs text-muted-foreground">
-                              {Math.round(analysisData.head_pose.gaze_distance)}
-                              px
-                            </span>
-                          </div>
-                        )}
+                            <div className="flex items-center justify-between">
+                              <span className="text-xs">Gaze Distance:</span>
+                              <span className="text-xs text-muted-foreground">
+                                {Math.round(analysisData.head_pose.gaze_distance)}
+                                px
+                              </span>
+                            </div>
+                          )}
                       </div>
                     )}
 
@@ -584,47 +595,18 @@ export const FaceDetectionPanel = forwardRef<
                         </div>
                         {analysisData.multiple_faces
                           .multiple_faces_detected && (
-                          <div className="text-xs text-red-600">
-                            ⚠️ Multiple people detected
-                          </div>
-                        )}
+                            <div className="text-xs text-red-600">
+                              ⚠️ Multiple people detected
+                            </div>
+                          )}
                       </div>
                     )}
 
-                    {analysisData.screen_sharing && (
-                      <div className="space-y-2 mb-3">
-                        <div className="flex items-center justify-between">
-                          <span className="text-xs font-medium">
-                            Screen Activity:
-                          </span>
-                          <Badge
-                            variant={
-                              analysisData.screen_sharing
-                                .screen_sharing_detected
-                                ? "destructive"
-                                : "default"
-                            }
-                          >
-                            {analysisData.screen_sharing.screen_sharing_detected
-                              ? "Switching"
-                              : "Focused"}
-                          </Badge>
-                        </div>
-                        {typeof analysisData.screen_sharing
-                          .time_since_last_activity === "number" && (
-                          <div className="flex items-center justify-between">
-                            <span className="text-xs">Last Activity:</span>
-                            <span className="text-xs text-muted-foreground">
-                              {Math.round(
-                                analysisData.screen_sharing
-                                  .time_since_last_activity,
-                              )}
-                              s ago
-                            </span>
-                          </div>
-                        )}
-                      </div>
-                    )}
+
+
+
+
+
 
                     {analysisData.voice_analysis && (
                       <div className="space-y-2 mb-3">
@@ -644,28 +626,28 @@ export const FaceDetectionPanel = forwardRef<
                         </div>
                         {typeof analysisData.voice_analysis.confidence ===
                           "number" && (
-                          <div className="flex items-center justify-between">
-                            <span className="text-xs">Confidence:</span>
-                            <span className="text-xs text-muted-foreground">
-                              {Math.round(
-                                analysisData.voice_analysis.confidence * 100,
-                              )}
-                              %
-                            </span>
-                          </div>
-                        )}
+                            <div className="flex items-center justify-between">
+                              <span className="text-xs">Confidence:</span>
+                              <span className="text-xs text-muted-foreground">
+                                {Math.round(
+                                  analysisData.voice_analysis.confidence * 100,
+                                )}
+                                %
+                              </span>
+                            </div>
+                          )}
                         {typeof analysisData.voice_analysis.nervousness ===
                           "number" && (
-                          <div className="flex items-center justify-between">
-                            <span className="text-xs">Nervousness:</span>
-                            <span className="text-xs text-muted-foreground">
-                              {Math.round(
-                                analysisData.voice_analysis.nervousness * 100,
-                              )}
-                              %
-                            </span>
-                          </div>
-                        )}
+                            <div className="flex items-center justify-between">
+                              <span className="text-xs">Nervousness:</span>
+                              <span className="text-xs text-muted-foreground">
+                                {Math.round(
+                                  analysisData.voice_analysis.nervousness * 100,
+                                )}
+                                %
+                              </span>
+                            </div>
+                          )}
                       </div>
                     )}
                   </div>

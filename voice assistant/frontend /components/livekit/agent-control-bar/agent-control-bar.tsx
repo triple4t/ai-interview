@@ -25,7 +25,7 @@ import {
 
 export interface AgentControlBarProps
   extends React.HTMLAttributes<HTMLDivElement>,
-    UseAgentControlBarProps {
+  UseAgentControlBarProps {
   capabilities: Pick<
     AppConfig,
     "supportsChatInput" | "supportsVideoInput" | "supportsScreenShare"
@@ -84,9 +84,13 @@ export function AgentControlBar({
 
   const onLeave = async () => {
     setIsDisconnecting(true);
-    await handleDisconnect();
-    setIsDisconnecting(false);
+    // Call onDisconnect first (for navigation) before disconnecting from room
     onDisconnect?.();
+    // Add a longer delay to ensure navigation completes before disconnect
+    setTimeout(async () => {
+      await handleDisconnect();
+      setIsDisconnecting(false);
+    }, 500);
   };
 
   React.useEffect(() => {

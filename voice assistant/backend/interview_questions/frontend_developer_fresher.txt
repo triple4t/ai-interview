@@ -1,0 +1,107 @@
+Easy (1-34)
+1) What does HTML stand for?
+2) What is the purpose of the <head> tag?
+3) What are semantic tags? Give examples.
+4) What is the difference between class and id in HTML?
+5) What is CSS and how is it linked to HTML?
+6) What is the CSS box model?
+7) Difference between margin and padding.
+8) What is Flexbox used for?
+9) What are media queries?
+10) What is JavaScript used for in the browser?
+11) Difference between let, const, and var.
+12) What is a function in JavaScript?
+13) What are arrays and objects?
+14) What is JSON?
+15) What is DOM?
+16) How do you select an element in the DOM?
+17) What is an event listener?
+18) What are React components?
+19) Difference between props and state.
+20) What is a hook? Name two common hooks.
+21) What is Next.js?
+22) Difference between CSR and SSR.
+23) What is a route in Next.js app router?
+24) What is a 404 page?
+25) What is responsive design?
+26) What are accessibility basics (alt text, labels)?
+27) What is Git used for?
+28) What is a pull request?
+29) What is npm or pnpm?
+30) What is an API?
+31) What is fetch used for?
+32) What is CORS?
+33) What is a component library?
+34) What is a unit test?
+
+Medium (35-67)
+35) How to manage component state effectively?
+36) When to use Context vs props drilling?
+37) How would you build a form with validation rules.
+38) Handle API errors gracefully in UI.
+39) How would you implement pagination on a list page.
+40) How would you implement search with debounce.
+41) Explain useEffect dependencies and pitfalls.
+42) Optimize rendering with React.memo.
+43) How would you implement dynamic routing in Next.js.
+44) How would you implement protected routes based on auth state.
+45) Handle file uploads from the browser.
+46) How would you implement infinite scroll with IntersectionObserver.
+47) How would you approach writing tests for a form component.
+48) Prevent XSS in rendering HTML.
+49) How would you implement light/dark theme toggling.
+50) Use CSS modules vs styled-components.
+51) Optimize images in Next.js.
+52) Avoid layout shift (CLS) issues.
+53) How would you build accessible modal dialog.
+54) Internationalize a page (i18n basics).
+55) Cache API responses on the client.
+56) Explain hydration and common errors.
+57) Use Suspense for loading states.
+58) How would you set up ESLint, Prettier, and TypeScript.
+59) Handle time zones in the UI.
+60) How would you implement optimistic UI updates.
+61) How would you design a reusable table component.
+62) How would you implement drag-and-drop interactions.
+63) Manage environment variables in Next.js.
+64) How would you implement error boundaries.
+65) How would you configure CSP headers for security.
+66) Integrate WebSocket for live updates.
+67) Organize a scalable folder structure.
+
+Hard (68-100)
+68) Architect a large component library with theming.
+69) Design micro-frontends for independent deployment.
+70) How would you implement SSR streaming in Next.js.
+71) How would you build an offline-first PWA with background sync.
+72) How would you implement state management at scale (Redux Toolkit/Zustand).
+73) How would you design a data grid with virtualization.
+74) How would you implement advanced a11y for complex widgets.
+75) Optimize for Core Web Vitals.
+76) How would you implement end-to-end encryption in a chat UI.
+77) How would you design plugin architecture for components.
+78) Use Web Workers for heavy computations.
+79) How would you implement WebRTC video UI.
+80) Design code-splitting and route-level prefetching.
+81) How would you build a design tokens system.
+82) How would you implement advanced caching with service workers.
+83) How would you build a custom rendering pipeline with canvas/WebGL.
+84) How would you implement real-time collaboration cursors.
+85) Optimize RSC and server actions usage.
+86) How would you design a monorepo setup for frontend platform.
+87) How would you implement strict CSP with nonces.
+88) How would you build automated visual regression tests.
+89) How would you implement feature flags and remote config.
+90) How would you build an analytics pipeline with privacy controls.
+91) How would you implement secure OAuth/OIDC flows.
+92) How would you design a resilient offline sync engine.
+93) Architect a multi-tenant theming strategy.
+94) How would you build a component performance budget with lint rules.
+95) How would you implement module federation for micro-frontends.
+96) How would you build a CLI to scaffold components.
+97) How would you implement WASM for performance-critical features.
+98) How would you design a robust error telemetry system.
+99) How would you build real-time presence using WebSocket and CRDT.
+100) Design a testing pyramid for large frontend apps.
+
+

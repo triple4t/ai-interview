@@ -45,8 +45,12 @@ class EnhancedFaceDetector:
             cv2.data.haarcascades + "haarcascade_frontalface_default.xml"
         )
 
-        # Simple screen-activity heuristic
+        # Screen activity tracking
         self.last_activity_time = time.time()
+        self.last_face_position = None
+        self.face_movement_threshold = 50  # pixels
+        self.screen_switch_detected = False
+        self.screen_switch_start_time = None
 
         # Temporal smoothing for presence (hysteresis)
         self.with_face_frames = 0
@@ -54,6 +58,257 @@ class EnhancedFaceDetector:
         self.state_face_detected = False
         self.flip_up = 2     # need 2 consecutive frames w/ face to switch to True
         self.flip_down = 5   # need 5 consecutive frames w/o face to switch to False
+
+        # Mobile device detection
+        self.mobile_device_detected = False
+        self.suspicious_objects_detected = []
+
+    # ---- Mobile device detection ----
+    def detect_mobile_devices(self, frame: np.ndarray) -> Dict[str, Any]:
+        """Detect mobile phones, tablets, and other electronic devices using OpenCV."""
+        try:
+            mobile_objects = []
+            
+            # Use contour detection for rectangular objects that might be phones
+            gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+            blurred = cv2.GaussianBlur(gray, (5, 5), 0)
+            edges = cv2.Canny(blurred, 30, 100)  # Lowered thresholds for better detection
+            contours, _ = cv2.findContours(edges, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+            
+            h, w = frame.shape[:2]
+            frame_area = h * w
+            
+            for contour in contours:
+                area = cv2.contourArea(contour)
+                if area > 500:  # Lowered minimum area threshold
+                    x, y, w_rect, h_rect = cv2.boundingRect(contour)
+                    aspect_ratio = w_rect / h_rect if h_rect > 0 else 0
+                    
+                    # More flexible phone-like aspect ratios (phones can be held in different orientations)
+                    if 0.8 <= aspect_ratio <= 4.0 and area > 2000:
+                        # Check if it's not a face (avoid false positives)
+                        face_roi = gray[y:y+h_rect, x:x+w_rect]
+                        faces_in_roi = self.face_cascade.detectMultiScale(face_roi, 1.1, 4)
+                        if len(faces_in_roi) == 0:
+                            # Additional checks for phone-like characteristics
+                            relative_area = area / frame_area
+                            if relative_area > 0.001 and relative_area < 0.1:  # Not too small, not too large
+                                mobile_objects.append({
+                                    'type': 'potential_mobile_device',
+                                    'confidence': 0.8,
+                                    'bbox': {'x': x, 'y': y, 'width': w_rect, 'height': h_rect},
+                                    'area': area,
+                                    'aspect_ratio': aspect_ratio
+                                })
+            
+            # Also check for dark rectangular regions (phones often appear dark)
+            hsv = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
+            lower_dark = np.array([0, 0, 0])
+            upper_dark = np.array([180, 255, 50])
+            dark_mask = cv2.inRange(hsv, lower_dark, upper_dark)
+            
+            dark_contours, _ = cv2.findContours(dark_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+            
+            for contour in dark_contours:
+                area = cv2.contourArea(contour)
+                if area > 1000:  # Dark objects with reasonable size
+                    x, y, w_rect, h_rect = cv2.boundingRect(contour)
+                    aspect_ratio = w_rect / h_rect if h_rect > 0 else 0
+                    
+                    # Check for phone-like dark rectangles
+                    if 0.8 <= aspect_ratio <= 4.0 and area > 2000:
+                        # Avoid duplicates
+                        is_duplicate = False
+                        for existing in mobile_objects:
+                            existing_bbox = existing['bbox']
+                            # Check if rectangles overlap significantly
+                            if (abs(x - existing_bbox['x']) < 50 and 
+                                abs(y - existing_bbox['y']) < 50):
+                                is_duplicate = True
+                                break
+                        
+                        if not is_duplicate:
+                            mobile_objects.append({
+                                'type': 'dark_mobile_device',
+                                'confidence': 0.9,
+                                'bbox': {'x': x, 'y': y, 'width': w_rect, 'height': h_rect},
+                                'area': area,
+                                'aspect_ratio': aspect_ratio
+                            })
+            
+            # Debug logging
+            if len(mobile_objects) > 0:
+                logger.info(f"Mobile devices detected: {len(mobile_objects)} objects")
+                for i, obj in enumerate(mobile_objects):
+                    logger.info(f"  Device {i+1}: {obj['type']}, confidence: {obj['confidence']}, area: {obj['area']}, aspect_ratio: {obj['aspect_ratio']:.2f}")
+            else:
+                logger.debug(f"No mobile devices detected. Found {len(contours)} contours and {len(dark_contours)} dark contours")
+            
+            return {
+                'mobile_devices_detected': len(mobile_objects) > 0,
+                'device_count': len(mobile_objects),
+                'devices': mobile_objects
+            }
+        except Exception as e:
+            logger.exception("Error in mobile device detection: %s", e)
+            return {
+                'mobile_devices_detected': False,
+                'device_count': 0,
+                'devices': []
+            }
+
+    # ---- Suspicious object detection ----
+    def detect_suspicious_objects(self, frame: np.ndarray) -> Dict[str, Any]:
+        """Detect suspicious objects like papers, books, notes, etc. using OpenCV."""
+        try:
+            suspicious_objects = []
+            
+            # Detect rectangular objects that might be papers/notes using contour detection
+            gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+            blurred = cv2.GaussianBlur(gray, (5, 5), 0)
+            edges = cv2.Canny(blurred, 50, 150)
+            contours, _ = cv2.findContours(edges, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+            
+            for contour in contours:
+                area = cv2.contourArea(contour)
+                if area > 2000:  # Filter small contours
+                    x, y, w, h = cv2.boundingRect(contour)
+                    aspect_ratio = w / h if h > 0 else 0
+                    
+                    # Paper-like aspect ratios (typically 0.7-1.4)
+                    if 0.5 <= aspect_ratio <= 2.0 and area > 3000:
+                        # Check if it's not a face
+                        face_roi = gray[y:y+h, x:x+w]
+                        faces_in_roi = self.face_cascade.detectMultiScale(face_roi, 1.1, 4)
+                        if len(faces_in_roi) == 0:
+                            suspicious_objects.append({
+                                'type': 'potential_paper_note',
+                                'confidence': 0.6,
+                                'bbox': {'x': x, 'y': y, 'width': w, 'height': h}
+                            })
+            
+            return {
+                'suspicious_objects_detected': len(suspicious_objects) > 0,
+                'object_count': len(suspicious_objects),
+                'objects': suspicious_objects
+            }
+        except Exception as e:
+            logger.exception("Error in suspicious object detection: %s", e)
+            return {
+                'suspicious_objects_detected': False,
+                'object_count': 0,
+                'objects': []
+            }
+
+    # ---- Enhanced screen switching detection ----
+    def detect_screen_sharing(self, analysis: Dict[str, Any], face_landmarks=None) -> Dict[str, Any]:
+        """Enhanced screen switching detection - only triggers for actual tab/app switching."""
+        now = time.time()
+        time_since_last = now - self.last_activity_time
+        
+        # Update activity time if face is detected and looking at screen
+        if analysis.get("face_detected") and analysis.get("head_pose", {}).get("looking_at_screen"):
+            self.last_activity_time = now
+            self.screen_switch_detected = False
+            self.screen_switch_start_time = None
+        
+        # Detect screen switching based on more specific criteria for tab/app switching
+        screen_switching = False
+        switching_reason = []
+        
+        # 1. Extended time-based detection (no face activity for longer period - more likely tab switching)
+        if time_since_last > 5.0 and not analysis.get("face_detected"):
+            screen_switching = True
+            switching_reason.append("No face detected for extended period (likely tab switching)")
+        
+        # 2. Sudden disappearance followed by reappearance (tab switching pattern)
+        if face_landmarks and analysis.get("face_detected"):
+            current_face_center = self._get_face_center(face_landmarks)
+            if self.last_face_position is not None:
+                movement = np.linalg.norm(current_face_center - self.last_face_position)
+                # Only trigger for very large movements (likely tab switching)
+                if movement > self.face_movement_threshold * 2:  # Double the threshold
+                    screen_switching = True
+                    switching_reason.append("Sudden large face movement (possible tab switching)")
+            self.last_face_position = current_face_center
+        
+        # 3. Head pose changes - only trigger for sustained looking away (not brief glances)
+        head_pose = analysis.get("head_pose", {})
+        if not head_pose.get("looking_at_screen") and analysis.get("face_detected"):
+            # Only consider it screen switching if sustained for multiple frames
+            if not hasattr(self, 'looking_away_frames'):
+                self.looking_away_frames = 0
+            self.looking_away_frames += 1
+            
+            # Only trigger after sustained looking away (3+ seconds worth of frames at 10fps)
+            if self.looking_away_frames > 30:  # 3 seconds at 10fps
+                screen_switching = True
+                switching_reason.append("Sustained looking away (possible tab switching)")
+        else:
+            # Reset counter when looking back at screen
+            if hasattr(self, 'looking_away_frames'):
+                self.looking_away_frames = 0
+        
+        # 4. Eye tracking changes - only for sustained looking away
+        eye_tracking = analysis.get("eye_tracking", {})
+        if eye_tracking.get("eye_tracking") == "looking_away" and analysis.get("face_detected"):
+            # Only consider it screen switching if sustained
+            if not hasattr(self, 'eyes_away_frames'):
+                self.eyes_away_frames = 0
+            self.eyes_away_frames += 1
+            
+            # Only trigger after sustained eye movement away (2+ seconds worth of frames)
+            if self.eyes_away_frames > 20:  # 2 seconds at 10fps
+                screen_switching = True
+                switching_reason.append("Sustained eye movement away (possible tab switching)")
+        else:
+            # Reset counter when eyes back on screen
+            if hasattr(self, 'eyes_away_frames'):
+                self.eyes_away_frames = 0
+        
+        # 5. Additional check: rapid head movements followed by stillness (tab switching pattern)
+        if hasattr(self, 'last_head_pose') and head_pose.get("head_pose"):
+            current_head_pose = head_pose.get("head_pose")
+            if self.last_head_pose != current_head_pose:
+                # Head pose changed
+                if not hasattr(self, 'head_pose_change_time'):
+                    self.head_pose_change_time = now
+                elif now - self.head_pose_change_time > 2.0:  # If head pose changed and stayed changed for 2+ seconds
+                    screen_switching = True
+                    switching_reason.append("Sustained head pose change (possible tab switching)")
+            else:
+                # Reset if head pose is stable
+                if hasattr(self, 'head_pose_change_time'):
+                    delattr(self, 'head_pose_change_time')
+            self.last_head_pose = current_head_pose
+        
+        # Track screen switching state
+        if screen_switching and not self.screen_switch_detected:
+            self.screen_switch_detected = True
+            self.screen_switch_start_time = now
+        elif not screen_switching and self.screen_switch_detected:
+            self.screen_switch_detected = False
+            self.screen_switch_start_time = None
+        
+        return {
+            "screen_sharing_detected": bool(screen_switching),
+            "time_since_last_activity": float(time_since_last),
+            "switching_reason": switching_reason,
+            "switch_duration": float(now - self.screen_switch_start_time) if self.screen_switch_start_time else 0.0
+        }
+
+    def _get_face_center(self, face_landmarks):
+        """Get the center point of the face from landmarks."""
+        try:
+            landmarks = face_landmarks.landmark
+            if len(landmarks) < 468:
+                return np.array([0, 0])
+            
+            # Use nose tip as face center
+            nose_tip = landmarks[4]  # nose tip landmark
+            return np.array([nose_tip.x, nose_tip.y])
+        except Exception:
+            return np.array([0, 0])
 
     # ---- Face detection (MP + fallback) ----
     def detect_faces_mediapipe(self, frame: np.ndarray):
@@ -203,17 +458,6 @@ class EnhancedFaceDetector:
             logger.exception("Error in eye tracking analysis: %s", e)
             return {"eye_state": "unknown", "eye_tracking": "unknown", "eye_aspect_ratio": 0.0, "screen_distance": 0.0}
 
-    # ---- Simple tab/app switching heuristic ----
-    def detect_screen_sharing(self, analysis: Dict[str, Any]) -> Dict[str, Any]:
-        now = time.time()
-        time_since_last = now - self.last_activity_time
-        if analysis.get("face_detected"):
-            self.last_activity_time = now
-        return {
-            "screen_sharing_detected": bool(time_since_last > 5.0 and not analysis.get("face_detected")),
-            "time_since_last_activity": float(time_since_last),
-        }
-
     # ---- Voice analysis integration ----
     def analyze_voice_patterns(self) -> Dict[str, Any]:
         state = voice_analysis_service.get_analysis_state()
@@ -239,6 +483,8 @@ class EnhancedFaceDetector:
             "multiple_faces": {},
             "screen_sharing": {},
             "voice_analysis": {},
+            "mobile_devices": {},
+            "suspicious_objects": {},
             "suspicious_behavior": [],
             "recommendations": [],
         }
@@ -276,6 +522,8 @@ class EnhancedFaceDetector:
             head_pose = self.analyze_head_pose(frame, face_landmarks)
             eye_track = self.analyze_eye_tracking(frame, face_landmarks)
             multi = self.detect_multiple_faces(frame)
+            mobile = self.detect_mobile_devices(frame)
+            suspicious = self.detect_suspicious_objects(frame)
 
             attention_score = 0.0
             if head_pose.get("looking_at_screen"):
@@ -301,39 +549,64 @@ class EnhancedFaceDetector:
                     "eye_tracking": eye_track,
                     "head_pose": head_pose,
                     "multiple_faces": multi,
+                    "mobile_devices": mobile,
+                    "suspicious_objects": suspicious,
                 }
             )
 
-            analysis["screen_sharing"] = self.detect_screen_sharing(analysis)
+            analysis["screen_sharing"] = self.detect_screen_sharing(analysis, face_landmarks)
             voice_state = self.analyze_voice_patterns()
             analysis["voice_analysis"] = voice_state
 
             recs, sus = [], []
+            
+            # Face and attention recommendations
             if not head_pose.get("looking_at_screen"):
                 recs.append("Please look directly at the camera")
                 sus.append("User not looking at screen")
+            
             hp = head_pose.get("head_pose", "center")
             if hp in {"left", "right", "up", "down"}:
                 recs.append(f"Please face the camera directly (currently looking {hp})")
                 sus.append(f"Head turned {hp}")
+            
             if eye_track.get("eye_state") == "closed":
                 recs.append("Keep your eyes open and focused")
                 sus.append("Eyes closed - may indicate inattention")
+            
             if eye_track.get("eye_tracking") == "looking_away":
                 recs.append("Please look at the camera")
                 sus.append("Eyes not focused on screen")
+            
+            # Multiple faces
             if multi.get("multiple_faces_detected"):
                 recs.append("Only one person should be visible in the camera")
                 sus.append(f"Multiple faces detected ({multi.get('face_count', 0)} people)")
+            
+            # Screen switching
             if analysis["screen_sharing"].get("screen_sharing_detected"):
-                recs.append("Please stay focused on the interview")
-                sus.append("Potential screen switching detected")
+                recs.append("Please stay focused on the interview - avoid switching tabs or applications")
+                sus.append("Potential tab/application switching detected")
+            
+            # Mobile devices
+            if mobile.get("mobile_devices_detected"):
+                recs.append("Please remove mobile devices from camera view")
+                sus.append(f"Mobile device detected ({mobile.get('device_count', 0)} devices)")
+            
+            # Suspicious objects
+            if suspicious.get("suspicious_objects_detected"):
+                recs.append("Please remove any papers, notes, or reference materials")
+                sus.append(f"Suspicious objects detected ({suspicious.get('object_count', 0)} objects)")
+            
+            # Voice analysis
             if voice_state.get("nervousness", 0.0) > 0.7:
                 recs.append("Try to speak more confidently and clearly")
                 sus.append("High nervousness detected in voice")
+            
             if voice_state.get("confidence", 0.0) < 0.3:
                 recs.append("Speak with more confidence and clarity")
                 sus.append("Low confidence detected in voice")
+            
             if engagement_level == "low":
                 recs.append("Please maintain focus and engagement")
                 sus.append("Low engagement detected")
@@ -351,6 +624,8 @@ class EnhancedFaceDetector:
                     "eye_tracking": {"eye_state": "unknown", "eye_tracking": "unknown"},
                     "head_pose": {"looking_at_screen": False, "head_pose": "unknown"},
                     "multiple_faces": {"face_count": 0, "multiple_faces_detected": False},
+                    "mobile_devices": {"mobile_devices_detected": False, "device_count": 0, "devices": []},
+                    "suspicious_objects": {"suspicious_objects_detected": False, "object_count": 0, "objects": []},
                 }
             )
             analysis["screen_sharing"] = self.detect_screen_sharing(analysis)

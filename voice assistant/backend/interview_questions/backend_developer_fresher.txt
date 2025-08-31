@@ -1,0 +1,107 @@
+Easy (1-34)
+1) What is a backend server responsible for?
+2) What is an API endpoint?
+3) Name common HTTP methods.
+4) What does a 200 HTTP status mean?
+5) What does a 404 HTTP status mean?
+6) What is JSON and why is it used?
+7) What is a database table?
+8) Difference between a row and a column.
+9) What is a primary key?
+10) What is a unique constraint?
+11) What is an index?
+12) What is an ORM?
+13) What is a REST API?
+14) What is the purpose of request headers?
+15) What is the purpose of response codes?
+16) What is environment variable?
+17) What is a configuration file?
+18) What is version control (Git)?
+19) What is a branch in Git?
+20) What is a pull request?
+21) What is unit testing?
+22) What is integration testing?
+23) What is logging?
+24) What is rate limiting?
+25) What is caching?
+26) What is pagination?
+27) What is a migration?
+28) What is SQL injection?
+29) What is authentication?
+30) What is authorization?
+31) Difference between PUT and PATCH.
+32) What is idempotency?
+33) What is a 500 error?
+34) What is a health check endpoint?
+
+Medium (35-67)
+35) Design a user registration endpoint: inputs and outputs.
+36) How would you validate input data on the server?
+37) How to structure a basic FastAPI project?
+38) How to write a simple SQL query to filter by date range?
+39) When and how to add an index to a table?
+40) How would you prevent SQL injection?
+41) Explain CORS and how to configure it.
+42) How do you securely store passwords?
+43) How would you implement JWT authentication?
+44) How to refresh JWT tokens safely?
+45) How to paginate a list endpoint?
+46) How to upload and store files via an API?
+47) How to implement role-based access control?
+48) How to handle and return validation errors?
+49) How to structure service and repository layers?
+50) How to write unit tests for a service function?
+51) How to mock a database in tests?
+52) How to add structured logging and correlation IDs?
+53) How to implement retries with exponential backoff?
+54) How to implement rate limiting per user/IP?
+55) How to document APIs using OpenAPI/Swagger?
+56) How to perform database migrations in development?
+57) How to seed a database with initial data?
+58) How to use environment variables safely (dev/prod)?
+59) How to design an idempotent POST endpoint?
+60) How to handle long-running tasks using background jobs?
+61) How to design error responses consistently?
+62) How to measure API latency and throughput?
+63) How to add health and readiness endpoints?
+64) How to structure configs for multiple environments?
+65) How to handle concurrent writes safely?
+66) How to avoid N+1 queries with an ORM?
+67) How to choose between SQL and NoSQL for a feature?
+
+Hard (68-100)
+68) Design a minimal microservice architecture for auth and users.
+69) How to ensure data consistency across services without 2PC?
+70) Explain Saga pattern and when to use it.
+71) How to design a multi-tenant schema for small scale?
+72) How to implement secure secrets management locally and in cloud.
+73) How to do blue/green deployment safely with DB changes.
+74) How to implement circuit breaker and bulkhead patterns.
+75) How to handle back-pressure in async APIs.
+76) Design a cache strategy for hot endpoints with invalidation.
+77) How to shard a database table and route queries.
+78) How to plan and execute a large data backfill.
+79) How to design rate limiting for global users.
+80) How to instrument tracing across services.
+81) Compare REST, gRPC, and GraphQL; when to choose each.
+82) How to protect PII and comply with GDPR basics.
+83) How to design a file storage strategy (S3) with presigned URLs.
+84) How to design a robust job queue worker system.
+85) How to perform capacity planning for peak traffic.
+86) How to create a feature flag system for backend.
+87) How to design a search feature using Elasticsearch.
+88) How to migrate from monolith to modular monolith.
+89) How to guarantee idempotency across retries and duplicates.
+90) How to tune DB connection pool for high load.
+91) How to design an audit logging system.
+92) How to handle schema evolution without downtime.
+93) How to build data export/import safely and securely.
+94) How to implement request signing and verification.
+95) How to design multi-region failover strategy.
+96) How to set SLOs/SLAs and alerts for APIs.
+97) How to secure webhooks and prevent replay attacks.
+98) How to design an event-driven architecture for user lifecycle.
+99) How to design a safe rollback strategy.
+100) How to create a developer onboarding documentation set.
+
+
