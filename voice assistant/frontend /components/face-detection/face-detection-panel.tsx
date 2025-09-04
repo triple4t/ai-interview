@@ -250,7 +250,8 @@ export const FaceDetectionPanel = forwardRef<
     setIsLoading(true);
     setError(null);
 
-    const wsUrl = `ws://localhost:8000/api/v1/face-detection/ws/${clientId.current}`;
+    const baseUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api/v1";
+    const wsUrl = baseUrl.replace(/^https?:\/\//, 'ws://').replace(/^http:\/\//, 'ws://') + `/face-detection/ws/${clientId.current}`;
     const ws = new WebSocket(wsUrl);
 
     ws.onopen = () => {

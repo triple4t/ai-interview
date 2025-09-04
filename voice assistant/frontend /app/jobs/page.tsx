@@ -106,7 +106,7 @@ export default function JobsPage() {
               try {
                 // Automatically set the JD file for the LiveKit worker
                 if (job.jdSource) {
-                  const response = await fetch('http://localhost:8000/api/v1/interview/select-jd', {
+                  const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api/v1"}/interview/select-jd`, {
                     method: 'POST',
                     headers: {
                       'Content-Type': 'application/json',

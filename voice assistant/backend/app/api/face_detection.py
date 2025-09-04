@@ -19,7 +19,7 @@ logger = logging.getLogger("face-detection")
 router = APIRouter(prefix="/face-detection", tags=["face-detection"])
 
 
-# -----------------------------
+# -----------------------------x
 # Enhanced Face Detector
 # -----------------------------
 class EnhancedFaceDetector:

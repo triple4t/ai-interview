@@ -96,15 +96,32 @@ You can update these values in [`app-config.ts`](./app-config.ts) to customize b
 
 #### Environment Variables
 
-You'll also need to configure your LiveKit credentials in `.env.local` (copy `.env.example` if you don't have one):
+You'll need to configure your environment variables in `.env.local`. Create this file by copying `.env.local.example`:
+
+```bash
+cp .env.local.example .env.local
+```
+
+Then update the values in `.env.local`:
 
 ```env
+# Backend API Configuration
+NEXT_PUBLIC_API_URL=http://localhost:8000/api/v1
+
+# LiveKit Configuration (for voice/video features)
 LIVEKIT_API_KEY=your_livekit_api_key
 LIVEKIT_API_SECRET=your_livekit_api_secret
 LIVEKIT_URL=https://your-livekit-server-url
+
+# Connection Details Endpoint (optional, defaults to /api/connection-details)
+NEXT_PUBLIC_CONN_DETAILS_ENDPOINT=/api/connection-details
 ```
 
-These are required for the voice agent functionality to work with your LiveKit project.
+**Required variables:**
+- `NEXT_PUBLIC_API_URL`: The URL of your backend API server
+- `LIVEKIT_API_KEY`, `LIVEKIT_API_SECRET`, `LIVEKIT_URL`: Required for voice agent functionality
+
+**Note:** All `NEXT_PUBLIC_*` variables are exposed to the browser, so don't put sensitive data in them.
 
 ## Contributing
 

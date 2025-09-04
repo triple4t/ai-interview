@@ -485,7 +485,7 @@ export const SessionView = ({
 
       // Send to backend for evaluation
       const response = await fetch(
-        "http://localhost:8000/api/v1/interview/evaluate",
+        `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api/v1"}/interview/evaluate`,
         {
           method: "POST",
           headers: {
