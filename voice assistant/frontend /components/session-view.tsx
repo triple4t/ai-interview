@@ -378,9 +378,9 @@ export const SessionView = ({
         })),
       );
 
-      // Extract Q&A pairs from messages - only the 3 actual interview questions
+      // Extract Q&A pairs from messages - all interview questions (up to 5)
       let questionCount = 0;
-      const maxQuestions = 3;
+      const maxQuestions = 5;
       const questionAnswerPairs: { question: string; answer: string }[] = [];
 
       for (
@@ -485,7 +485,7 @@ export const SessionView = ({
 
       // Send to backend for evaluation
       const response = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api/v1"}/interview/evaluate`,
+        `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8002/api/v1"}/interview/evaluate`,
         {
           method: "POST",
           headers: {

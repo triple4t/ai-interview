@@ -7,6 +7,7 @@ class Settings(BaseSettings):
     app_name: str = "Interview Assistant API"
     version: str = "1.0.0"
     debug: bool = False
+    port: int = 8001
     
     # Security settings
     secret_key: str = "your-secret-key-change-in-production"
@@ -14,7 +15,7 @@ class Settings(BaseSettings):
     access_token_expire_minutes: int = 30
     
     # Database settings - using PostgreSQL
-    database_url: str = "postgresql://postgres@localhost:5432/interview_assistant"
+    database_url: str
     
     # PostgreSQL specific settings
     database_pool_size: int = 5
@@ -23,7 +24,7 @@ class Settings(BaseSettings):
     database_pool_recycle: int = 1800
     
     # CORS settings
-    allowed_origins: list = ["http://localhost:3000", "http://127.0.0.1:3000"]
+    allowed_origins: list = ["*"]
     
     # Email settings (for future email verification)
     smtp_server: Optional[str] = None

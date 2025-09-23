@@ -106,7 +106,7 @@ Then update the values in `.env.local`:
 
 ```env
 # Backend API Configuration
-NEXT_PUBLIC_API_URL=http://localhost:8000/api/v1
+NEXT_PUBLIC_API_URL=http://localhost:8002/api/v1
 
 # LiveKit Configuration (for voice/video features)
 LIVEKIT_API_KEY=your_livekit_api_key

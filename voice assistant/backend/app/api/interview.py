@@ -69,6 +69,39 @@ async def get_interview_history(
             detail=f"Error fetching interview history: {str(e)}"
         )
 
+@router.get("/history/latest", response_model=InterviewResultResponse)
+async def get_latest_interview(
+    db: Session = Depends(get_db),
+    current_user: Optional[User] = Depends(get_optional_user)
+):
+    """
+    Get user's latest interview result
+    """
+    try:
+        interview_service = InterviewService()
+        user_id = current_user.id if current_user else 1
+        history = await interview_service.get_user_history(
+            user_id=user_id,
+            db=db
+        )
+        
+        if not history:
+            raise HTTPException(
+                status_code=404,
+                detail="No interview results found. Please complete an interview first."
+            )
+        
+        # Return the most recent interview (first in the list since it's ordered by created_at desc)
+        return history[0]
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Error fetching latest interview: {str(e)}"
+        )
+
 @router.get("/{session_id}", response_model=InterviewResultResponse)
 async def get_interview_result(
     session_id: str,

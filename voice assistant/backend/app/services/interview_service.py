@@ -119,17 +119,18 @@ Return only valid JSON."""),
         """
         Evaluate a complete interview session with exactly 5 questions
         """
-        # Ensure we only evaluate exactly 5 questions
-        if len(questions) != 5 or len(answers) != 5:
-            print(f"⚠️ Warning: Expected 5 Q&A pairs, got {len(questions)} questions and {len(answers)} answers")
-            # Pad with empty strings if needed
-            while len(questions) < 5:
+        # Ensure we have matching questions and answers
+        if len(questions) != len(answers):
+            print(f"⚠️ Warning: Mismatch between questions ({len(questions)}) and answers ({len(answers)})")
+            # Pad with empty strings to match the longer list
+            max_length = max(len(questions), len(answers))
+            while len(questions) < max_length:
                 questions.append("No question provided")
-            while len(answers) < 5:
+            while len(answers) < max_length:
                 answers.append("No answer provided")
-            # Truncate if more than 5
-            questions = questions[:5]
-            answers = answers[:5]
+        
+        # Log the actual number of Q&A pairs being evaluated
+        print(f"📝 Evaluating {len(questions)} Q&A pairs")
         """
         Evaluate a complete interview session
         """

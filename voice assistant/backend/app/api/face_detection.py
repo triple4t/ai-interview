@@ -691,37 +691,49 @@ async def websocket_endpoint(websocket: WebSocket, client_id: str):
 
                     _, analysis = enhanced_face_detector.process_frame(frame)
 
-                    await websocket.send_json(
-                        {
-                            "type": "analysis_result",
-                            "data": {"analysis": analysis, "timestamp": time.time()},
-                        }
-                    )
+                    # Check if websocket is still open before sending
+                    if websocket.client_state.name == "CONNECTED":
+                        try:
+                            await websocket.send_json(
+                                {
+                                    "type": "analysis_result",
+                                    "data": {"analysis": analysis, "timestamp": time.time()},
+                                }
+                            )
+                        except Exception as send_error:
+                            logger.warning("Failed to send analysis result: %s", send_error)
+                            break  # Exit the loop if we can't send
                 except Exception as e:
                     logger.exception("Error processing incoming frame: %s", e)
-                    await websocket.send_json(
-                        {
-                            "type": "analysis_result",
-                            "data": {
-                                "analysis": {
-                                    "face_detected": False,
-                                    "face_count": 0,
-                                    "confidence": 0.0,
-                                    "attention_score": 0.0,
-                                    "engagement_level": "low",
-                                    "eye_tracking": {"eye_state": "unknown", "eye_tracking": "unknown"},
-                                    "head_pose": {"looking_at_screen": False, "head_pose": "unknown"},
-                                    "multiple_faces": {"face_count": 0, "multiple_faces_detected": False},
-                                    "screen_sharing": {"screen_sharing_detected": False, "time_since_last_activity": 0.0},
-                                    "voice_analysis": {"speaking": False, "confidence": 0.0, "nervousness": 0.0, "speech_patterns": []},
-                                    "suspicious_behavior": ["Frame processing error"],
-                                    "recommendations": ["Please check camera connection"],
-                                    "error": str(e),
-                                },
-                                "timestamp": time.time(),
-                            },
-                        }
-                    )
+                    # Check if websocket is still open before sending error response
+                    if websocket.client_state.name == "CONNECTED":
+                        try:
+                            await websocket.send_json(
+                                {
+                                    "type": "analysis_result",
+                                    "data": {
+                                        "analysis": {
+                                            "face_detected": False,
+                                            "face_count": 0,
+                                            "confidence": 0.0,
+                                            "attention_score": 0.0,
+                                            "engagement_level": "low",
+                                            "eye_tracking": {"eye_state": "unknown", "eye_tracking": "unknown"},
+                                            "head_pose": {"looking_at_screen": False, "head_pose": "unknown"},
+                                            "multiple_faces": {"face_count": 0, "multiple_faces_detected": False},
+                                            "screen_sharing": {"screen_sharing_detected": False, "time_since_last_activity": 0.0},
+                                            "voice_analysis": {"speaking": False, "confidence": 0.0, "nervousness": 0.0, "speech_patterns": []},
+                                            "suspicious_behavior": ["Frame processing error"],
+                                            "recommendations": ["Please check camera connection"],
+                                            "error": str(e),
+                                        },
+                                        "timestamp": time.time(),
+                                    },
+                                }
+                            )
+                        except Exception as send_error:
+                            logger.warning("Failed to send error response: %s", send_error)
+                            break  # Exit the loop if we can't send
 
             elif msg_type == "ping":
                 await websocket.send_json({"type": "pong"})
