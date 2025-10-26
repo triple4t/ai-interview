@@ -24,7 +24,7 @@ class Settings(BaseSettings):
     database_pool_recycle: int = 1800
     
     # CORS settings
-    allowed_origins: list = ["*"]
+    allowed_origins: list = ["http://localhost:3000", "http://127.0.0.1:3000"]
     
     # Email settings (for future email verification)
     smtp_server: Optional[str] = None

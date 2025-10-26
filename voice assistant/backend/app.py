@@ -90,29 +90,41 @@ def _load_questions_from_file(jd_filename: str) -> List[str]:
 
 def get_random_interview_questions() -> List[str]:
     # Try dynamic source first
+    logger.info("[Interview] ===== LOADING INTERVIEW QUESTIONS =====")
     jd_filename = _read_selected_jd_filename()
+    logger.info(f"[Interview] Selected JD filename: {jd_filename}")
+    
     dynamic_questions = _load_questions_from_file(jd_filename)
     questions_pool: List[str]
+    
     if dynamic_questions:
+        logger.info(f"[Interview] ✅ Successfully loaded {len(dynamic_questions)} questions from {jd_filename}")
         questions_pool = dynamic_questions
     else:
         # fallback static pool
+        logger.warning(f"[Interview] ⚠️ FALLING BACK TO STATIC GENAI QUESTIONS - Could not load from {jd_filename}")
         questions_pool = [
+            "What is a prompt?",
+            "How would you implement governance and approvals for prompts?",
+            "What is a knowledge cutoff?",
+            "What is a context window?",
+            "Design evals for grounding and factuality.",
             "What does tokenization entail, and why is it critical for LLMs?",
             "Why is cross-entropy loss used in language modeling?",
             "How are gradients computed for embeddings in LLMs?",
             "How do LLMs differ from traditional statistical language models?",
             "What are sequence-to-sequence models, and where are they applied?",
-            "What distinguishes LoRA from QLoRA in fine-tuning LLMs?",
-            "What is zero-shot learning?",
-            "How does the attention mechanism work in transformers?",
-            "What is the role of positional encoding in transformers?",
-            "How do you prevent overfitting in large language models?",
         ]
         logger.info("[Interview] Using fallback static questions pool")
+    
     if len(questions_pool) >= 5:
         logger.info(f"[Interview] Selecting 5 random questions from pool of {len(questions_pool)}")
-        return random.sample(questions_pool, 5)
+        selected_questions = random.sample(questions_pool, 5)
+        logger.info("[Interview] Selected questions for this session:")
+        for i, q in enumerate(selected_questions, 1):
+            logger.info(f"[Interview]   {i}. {q}")
+        logger.info("[Interview] ===== QUESTIONS LOADED SUCCESSFULLY =====")
+        return selected_questions
     return questions_pool[:5]
 
 

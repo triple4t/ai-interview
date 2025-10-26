@@ -132,7 +132,7 @@ export default function ResultPage() {
     setLoading(true);
     try {
       const url = sessionId
-        ? `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8002/api/v1"}/interview/result/${sessionId}`
+        ? `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8002/api/v1"}/interview/${sessionId}`
         : `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8002/api/v1"}/interview/history/latest`;
 
       const res = await fetch(url, { credentials: "include" });

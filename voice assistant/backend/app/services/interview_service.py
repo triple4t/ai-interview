@@ -214,20 +214,34 @@ Return only valid JSON."""),
                     if not storage_success:
                         print("⚠️ Warning: Failed to store evaluation result in database")
                     
+                    # Store individual Q&A pairs
+                    qa_success = await self._store_qa_pairs(session_id, user_id, questions, answers, detailed_feedback, db)
+                    if not qa_success:
+                        print("⚠️ Warning: Failed to store Q&A pairs in database")
+                    
                     return result
                     
                 except json.JSONDecodeError as e:
                     print(f"JSON parsing error: {e}")
                     print(f"Raw response: {response.content}")
-                    return self._create_fallback_result(session_id, user_id, questions, answers)
+                    fallback_result = self._create_fallback_result(session_id, user_id, questions, answers)
+                    await self._store_evaluation_result(fallback_result, db)
+                    await self._store_qa_pairs(session_id, user_id, questions, answers, fallback_result.detailed_feedback, db)
+                    return fallback_result
             
             else:
                 # Fallback when AI model is not available
-                return self._create_fallback_result(session_id, user_id, questions, answers)
+                fallback_result = self._create_fallback_result(session_id, user_id, questions, answers)
+                await self._store_evaluation_result(fallback_result, db)
+                await self._store_qa_pairs(session_id, user_id, questions, answers, fallback_result.detailed_feedback, db)
+                return fallback_result
                 
         except Exception as e:
             print(f"Error in interview evaluation: {e}")
-            return self._create_fallback_result(session_id, user_id, questions, answers)
+            fallback_result = self._create_fallback_result(session_id, user_id, questions, answers)
+            await self._store_evaluation_result(fallback_result, db)
+            await self._store_qa_pairs(session_id, user_id, questions, answers, fallback_result.detailed_feedback, db)
+            return fallback_result
 
     def _create_fallback_result(
         self,
@@ -365,6 +379,49 @@ Return only valid JSON."""),
             
         except Exception as e:
             print(f"Error storing evaluation result: {e}")
+            import traceback
+            traceback.print_exc()
+            db.rollback()
+            return False
+
+    async def _store_qa_pairs(
+        self,
+        session_id: str,
+        user_id: int,
+        questions: List[str],
+        answers: List[str],
+        detailed_feedback: List[Dict[str, Any]],
+        db: Session
+    ) -> bool:
+        """
+        Store individual Q&A pairs in the qa_pairs table
+        """
+        try:
+            print(f"💾 Storing {len(questions)} Q&A pairs for session {session_id}")
+            
+            for i, (question, answer) in enumerate(zip(questions, answers)):
+                # Get score from detailed feedback if available
+                score = None
+                if i < len(detailed_feedback):
+                    score = detailed_feedback[i].get('score', None)
+                
+                # Create QA pair
+                qa_pair = QAPair(
+                    user_id=user_id,
+                    session_id=session_id,
+                    question=question,
+                    answer=answer,
+                    score=score
+                )
+                
+                db.add(qa_pair)
+            
+            db.commit()
+            print(f"✅ Successfully stored {len(questions)} Q&A pairs")
+            return True
+            
+        except Exception as e:
+            print(f"Error storing Q&A pairs: {e}")
             import traceback
             traceback.print_exc()
             db.rollback()

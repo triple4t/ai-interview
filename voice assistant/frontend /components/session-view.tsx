@@ -253,17 +253,23 @@ export const SessionView = ({
     setHasNavigated(true);
     setIsProcessingInterview(true);
 
-    // Navigate immediately to results page
-    console.log("🚀 Navigating immediately to /result page");
-    handleRouterPush("/result");
-
-    // Process interview data in the background (don't wait for it)
+    // Process interview data FIRST, then navigate
     try {
-      console.log("📊 Processing interview data in background...");
-      await processInterviewData();
+      console.log("📊 Processing interview data...");
+      const sessionId = await processInterviewData();
       console.log("✅ Interview data processed successfully");
+      console.log("🚀 Navigating to /result page with sessionId:", sessionId);
+
+      // Navigate with sessionId if available
+      if (sessionId) {
+        handleRouterPush(`/result?sessionId=${sessionId}`);
+      } else {
+        handleRouterPush("/result");
+      }
     } catch (error) {
       console.error("❌ Error processing interview:", error);
+      // Navigate anyway even if processing fails
+      handleRouterPush("/result");
     } finally {
       setIsProcessingInterview(false);
     }
@@ -343,9 +349,15 @@ export const SessionView = ({
 
       // Process and send interview data to backend
       processInterviewData()
-        .then(() => {
-          console.log("🚀 Auto-navigating to /result page");
-          handleRouterPush("/result");
+        .then((sessionId) => {
+          console.log("🚀 Auto-navigating to /result page with sessionId:", sessionId);
+
+          // Navigate with sessionId if available
+          if (sessionId) {
+            handleRouterPush(`/result?sessionId=${sessionId}`);
+          } else {
+            handleRouterPush("/result");
+          }
         })
         .catch((error) => {
           console.error("❌ Error processing interview:", error);
@@ -358,7 +370,7 @@ export const SessionView = ({
   }, [messages, latestAgentMessage, hasNavigated, router]);
 
   // Function to process and send interview data
-  async function processInterviewData() {
+  async function processInterviewData(): Promise<string | null> {
     try {
       // Extract questions and answers from conversation
       const questions: string[] = [];
@@ -530,13 +542,18 @@ export const SessionView = ({
           "✅ Interview evaluation completed with enhanced analysis:",
           enhancedResult,
         );
+
+        // Return the session ID for navigation
+        return sessionId;
       } else {
         console.error("❌ Failed to evaluate interview:", response.statusText);
         const errorText = await response.text();
         console.error("Error details:", errorText);
+        return null;
       }
     } catch (error) {
       console.error("❌ Error processing interview data:", error);
+      return null;
     }
   }
 
