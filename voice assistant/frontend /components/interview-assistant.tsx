@@ -87,7 +87,7 @@ export const InterviewAssistant = () => {
     const currentIndex = steps.findIndex((step) => step.key === currentView);
 
     return (
-      <div className="w-full max-w-2xl mx-auto mb-8">
+      <div className="w-full max-w-2xl mx-auto mb-4 sm:mb-8 px-2 sm:px-0">
         <div className="flex items-center justify-center">
           {steps.map((step, index) => {
             const Icon = step.icon;
@@ -97,7 +97,7 @@ export const InterviewAssistant = () => {
             return (
               <div key={step.key} className="flex items-center">
                 <div
-                  className={`flex items-center justify-center w-10 h-10 rounded-full border-2 ${
+                  className={`flex items-center justify-center w-8 h-8 sm:w-10 sm:h-10 rounded-full border-2 ${
                     isCompleted
                       ? "bg-green-500 border-green-500 text-white"
                       : isActive
@@ -105,18 +105,18 @@ export const InterviewAssistant = () => {
                         : "bg-gray-100 dark:bg-gray-800 border-gray-300 dark:border-gray-600 text-gray-400 dark:text-gray-500"
                   }`}
                 >
-                  <Icon className="h-5 w-5" />
+                  <Icon className="h-4 w-4 sm:h-5 sm:w-5" />
                 </div>
                 {index < steps.length - 1 && (
                   <div
-                    className={`w-12 h-1 mx-2 ${isCompleted ? "bg-green-500" : "bg-gray-300 dark:bg-gray-600"}`}
+                    className={`w-8 sm:w-12 h-0.5 sm:h-1 mx-1 sm:mx-2 ${isCompleted ? "bg-green-500" : "bg-gray-300 dark:bg-gray-600"}`}
                   />
                 )}
               </div>
             );
           })}
         </div>
-        <div className="flex justify-center mt-2 text-sm text-muted-foreground space-x-8">
+        <div className="flex justify-center mt-1.5 sm:mt-2 text-xs sm:text-sm text-muted-foreground space-x-4 sm:space-x-8">
           {steps.map((step, index) => (
             <span key={`label-${step.key}`} className="text-center">
               {step.label}
@@ -151,27 +151,27 @@ export const InterviewAssistant = () => {
       {/* Header */}
       {user && (
         <header className="border-b bg-card">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="flex items-center justify-between h-16">
-              <div className="flex items-center space-x-4">
-                <h1 className="text-xl font-semibold">
+          <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8">
+            <div className="flex items-center justify-between h-12 sm:h-16 py-2 sm:py-0">
+              <div className="flex items-center space-x-2 sm:space-x-4">
+                <h1 className="text-base sm:text-xl font-semibold">
                   AI Interview Assistant
                 </h1>
                 {user && (
-                  <div className="flex items-center space-x-2 text-sm text-muted-foreground">
-                    <User className="h-4 w-4" />
+                  <div className="hidden sm:flex items-center space-x-2 text-xs sm:text-sm text-muted-foreground">
+                    <User className="h-3 w-3 sm:h-4 sm:w-4" />
                     <span>Welcome, {user.full_name || user.username}</span>
                   </div>
                 )}
               </div>
-              <div className="flex items-center space-x-4">
+              <div className="flex items-center space-x-2 sm:space-x-4">
                 <Button
                   variant="outline"
                   size="sm"
                   onClick={handleLogout}
-                  className="flex items-center space-x-2"
+                  className="flex items-center space-x-1 sm:space-x-2 h-7 sm:h-9 text-xs sm:text-sm px-2 sm:px-4"
                 >
-                  <SignOut className="h-4 w-4" />
+                  <SignOut className="h-3 w-3 sm:h-4 sm:w-4" />
                   <span>Logout</span>
                 </Button>
               </div>
@@ -181,7 +181,7 @@ export const InterviewAssistant = () => {
       )}
 
       {/* Main Content */}
-      <main className="flex-1 flex items-center justify-center px-4 sm:px-6 lg:px-8 py-8">
+      <main className="flex-1 flex items-center justify-center px-3 sm:px-6 lg:px-8 py-4 sm:py-8">
         <div className="w-full max-w-4xl">
           <AnimatePresence mode="wait">
             <div key="progress-bar">{renderProgressBar()}</div>

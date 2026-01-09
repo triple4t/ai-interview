@@ -1,1 +1,1 @@
-full_stack_developer.txt
+genai_developer.txt

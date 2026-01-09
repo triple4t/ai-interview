@@ -6,12 +6,23 @@ from sqlalchemy import pool
 from alembic import context
 import sys
 import os
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'voice assistant', 'backend', 'app')))
-from db.database import Base
+
+# Add the backend directory to Python path
+backend_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'voice assistant', 'backend'))
+sys.path.insert(0, backend_path)
+
+# Import Base and all models so Alembic can detect them
+from app.db.database import Base
+from app.models import *  # Import all models
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.
 config = context.config
+
+# Use database URL from environment variable if available
+from app.core.config import settings
+if config.get_main_option("sqlalchemy.url") is None:
+    config.set_main_option("sqlalchemy.url", settings.database_url)
 
 # Interpret the config file for Python logging.
 # This line sets up loggers basically.
@@ -20,8 +31,6 @@ if config.config_file_name is not None:
 
 # add your model's MetaData object here
 # for 'autogenerate' support
-# from myapp import mymodel
-# target_metadata = mymodel.Base.metadata
 target_metadata = Base.metadata
 
 # other values from the config, defined by the needs of env.py,
@@ -42,7 +51,7 @@ def run_migrations_offline() -> None:
     script output.
 
     """
-    url = config.get_main_option("sqlalchemy.url")
+    url = config.get_main_option("sqlalchemy.url") or settings.database_url
     context.configure(
         url=url,
         target_metadata=target_metadata,
@@ -61,8 +70,13 @@ def run_migrations_online() -> None:
     and associate a connection with the context.
 
     """
+    # Use settings from config if available, otherwise from .env
+    configuration = config.get_section(config.config_ini_section, {})
+    if "sqlalchemy.url" not in configuration:
+        configuration["sqlalchemy.url"] = settings.database_url
+    
     connectable = engine_from_config(
-        config.get_section(config.config_ini_section, {}),
+        configuration,
         prefix="sqlalchemy.",
         poolclass=pool.NullPool,
     )

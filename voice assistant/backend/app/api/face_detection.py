@@ -24,21 +24,33 @@ router = APIRouter(prefix="/face-detection", tags=["face-detection"])
 # -----------------------------
 class EnhancedFaceDetector:
     def __init__(self) -> None:
-        # MediaPipe modules
-        self.mp_face_detection = mp.solutions.face_detection
-        self.mp_face_mesh = mp.solutions.face_mesh
-
-        # Instantiated processors
-        self.face_detection = self.mp_face_detection.FaceDetection(
-            model_selection=1, min_detection_confidence=0.5
-        )
-        self.face_mesh = self.mp_face_mesh.FaceMesh(
-            static_image_mode=False,
-            max_num_faces=10,
-            refine_landmarks=True,
-            min_detection_confidence=0.5,
-            min_tracking_confidence=0.5,
-        )
+        # MediaPipe modules - lazy loaded to handle API changes
+        self.mp_face_detection = None
+        self.mp_face_mesh = None
+        self.face_detection = None
+        self.face_mesh = None
+        self._mediapipe_available = False
+        
+        # Try to initialize MediaPipe (may fail with newer versions)
+        try:
+            if hasattr(mp, 'solutions'):
+                self.mp_face_detection = mp.solutions.face_detection
+                self.mp_face_mesh = mp.solutions.face_mesh
+                self.face_detection = self.mp_face_detection.FaceDetection(
+                    model_selection=1, min_detection_confidence=0.5
+                )
+                self.face_mesh = self.mp_face_mesh.FaceMesh(
+                    static_image_mode=False,
+                    max_num_faces=10,
+                    refine_landmarks=True,
+                    min_detection_confidence=0.5,
+                    min_tracking_confidence=0.5,
+                )
+                self._mediapipe_available = True
+            else:
+                logger.warning("MediaPipe solutions API not available. Using OpenCV fallback only.")
+        except Exception as e:
+            logger.warning(f"Failed to initialize MediaPipe: {e}. Using OpenCV fallback only.")
 
         # OpenCV cascades as fallback
         self.face_cascade = cv2.CascadeClassifier(
@@ -312,9 +324,15 @@ class EnhancedFaceDetector:
 
     # ---- Face detection (MP + fallback) ----
     def detect_faces_mediapipe(self, frame: np.ndarray):
-        rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-        results = self.face_detection.process(rgb_frame)
-        return results.detections if results and results.detections else []
+        if not self._mediapipe_available or self.face_detection is None:
+            return []
+        try:
+            rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+            results = self.face_detection.process(rgb_frame)
+            return results.detections if results and results.detections else []
+        except Exception as e:
+            logger.warning(f"MediaPipe face detection error: {e}")
+            return []
 
     def detect_faces_opencv(self, frame: np.ndarray):
         gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
@@ -363,12 +381,12 @@ class EnhancedFaceDetector:
     # ---- Multiple faces check ----
     def detect_multiple_faces(self, frame: np.ndarray) -> Dict[str, Any]:
         try:
-            rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-            results = self.face_mesh.process(rgb_frame)
-
             mp_count = 0
-            if results and getattr(results, "multi_face_landmarks", None):
-                mp_count = len(results.multi_face_landmarks)
+            if self._mediapipe_available and self.face_mesh is not None:
+                rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+                results = self.face_mesh.process(rgb_frame)
+                if results and getattr(results, "multi_face_landmarks", None):
+                    mp_count = len(results.multi_face_landmarks)
 
             ocv_faces = self.detect_faces_opencv(frame)
             ocv_count = len(ocv_faces) if ocv_faces is not None else 0
@@ -497,9 +515,10 @@ class EnhancedFaceDetector:
         if face_dets:
             det = max(face_dets, key=lambda d: d.score[0] if d.score else 0.0)
             confidence = float(det.score[0] if det.score else 0.0)
-            face_mesh_results = self.face_mesh.process(rgb_frame)
-            if face_mesh_results and face_mesh_results.multi_face_landmarks:
-                face_landmarks = face_mesh_results.multi_face_landmarks[0]
+            if self._mediapipe_available and self.face_mesh is not None:
+                face_mesh_results = self.face_mesh.process(rgb_frame)
+                if face_mesh_results and face_mesh_results.multi_face_landmarks:
+                    face_landmarks = face_mesh_results.multi_face_landmarks[0]
         else:
             ocv_faces = self.detect_faces_opencv(frame)
             if ocv_faces is not None and len(ocv_faces) > 0:
@@ -633,7 +652,15 @@ class EnhancedFaceDetector:
         return frame, analysis
 
 
-enhanced_face_detector = EnhancedFaceDetector()
+# Lazy initialization - only create when needed to avoid import errors
+_face_detector_instance = None
+
+def get_face_detector():
+    """Get or create the face detector instance (lazy initialization)."""
+    global _face_detector_instance
+    if _face_detector_instance is None:
+        _face_detector_instance = EnhancedFaceDetector()
+    return _face_detector_instance
 
 
 # -----------------------------
@@ -689,7 +716,8 @@ async def websocket_endpoint(websocket: WebSocket, client_id: str):
                     if frame is None:
                         continue
 
-                    _, analysis = enhanced_face_detector.process_frame(frame)
+                    detector = get_face_detector()
+                    _, analysis = detector.process_frame(frame)
 
                     # Check if websocket is still open before sending
                     if websocket.client_state.name == "CONNECTED":

@@ -1,12 +1,16 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.api import api_router
-from app.db.database import engine
-from app.models import user
+from app.db.database import engine, Base
 from app.core.config import settings
 
-# Create database tables
-user.Base.metadata.create_all(bind=engine)
+# Import all models to ensure they're registered with Base
+from app.models import (
+    user, qa, interview, candidate, recording, jd, matching, admin, memory
+)
+
+# Create database tables for all models
+Base.metadata.create_all(bind=engine)
 
 app = FastAPI(
     title=settings.app_name,

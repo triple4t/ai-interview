@@ -316,73 +316,24 @@ export default function ResultPage() {
                 </div>
 
                 <div className="mb-4">
-                  <p className="font-medium mb-2">Question:</p>
-                  <p className="text-muted-foreground mb-4">
-                    {feedback.question}
+                  <p className="font-medium mb-2 text-lg">Question:</p>
+                  <p className="text-muted-foreground mb-4 p-3 bg-gray-50 rounded-lg border-l-4 border-blue-500">
+                    {feedback.question || "No question provided"}
                   </p>
 
-                  <p className="font-medium mb-2">Your Answer:</p>
-                  <p className="text-muted-foreground mb-4">
-                    {feedback.answer}
+                  <p className="font-medium mb-2 text-lg">Your Answer:</p>
+                  <p className={`text-muted-foreground mb-4 p-3 rounded-lg border-l-4 ${
+                    feedback.answer && feedback.answer !== "No answer provided" 
+                      ? "bg-green-50 border-green-500" 
+                      : "bg-red-50 border-red-500"
+                  }`}>
+                    {feedback.answer || "No answer provided"}
                   </p>
 
-                  <p className="font-medium mb-2">Feedback:</p>
-                  <p className="text-muted-foreground mb-4">
+                  <p className="font-medium mb-2 text-lg">Feedback:</p>
+                  <p className="text-muted-foreground mb-4 p-3 bg-blue-50 rounded-lg border-l-4 border-purple-500">
                     {feedback.feedback}
                   </p>
-
-                  {/* Transcript snippet (best-effort relevance) */}
-                  {result.transcript && (
-                    <div className="mt-4">
-                      <p className="font-medium mb-2">Conversation:</p>
-                      <div className="space-y-2 max-h-48 overflow-y-auto bg-gray-50 rounded-lg p-3">
-                        {result.transcript.map((m, mIdx) => {
-                          const messageContent = (
-                            m.content || ""
-                          ).toLowerCase();
-                          const questionContent = (
-                            feedback.question || ""
-                          ).toLowerCase();
-                          const isRelevant =
-                            (questionContent.length > 0 &&
-                              messageContent.includes(
-                                questionContent.slice(
-                                  0,
-                                  Math.min(20, questionContent.length),
-                                ),
-                              )) ||
-                            (m.role === "user" && mIdx > 0);
-                          if (!isRelevant) return null;
-
-                          return (
-                            <div
-                              key={mIdx}
-                              className={`p-2 rounded text-sm ${m.role === "user"
-                                ? "bg-blue-100 border-l-2 border-blue-400"
-                                : "bg-gray-100 border-l-2 border-gray-400"
-                                }`}
-                            >
-                              <div className="flex items-start justify-between">
-                                <div className="flex-1">
-                                  <div className="font-medium text-xs mb-1">
-                                    {m.role === "user" ? "You" : "Interviewer"}
-                                  </div>
-                                  <div className="text-xs text-gray-700">
-                                    {m.content}
-                                  </div>
-                                </div>
-                                {m.timestamp && (
-                                  <div className="text-xs text-gray-500 ml-2">
-                                    {new Date(m.timestamp).toLocaleTimeString()}
-                                  </div>
-                                )}
-                              </div>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  )}
                 </div>
 
                 <div className="grid md:grid-cols-2 gap-4">

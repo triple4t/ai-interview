@@ -1,107 +1,157 @@
-Easy (1-34)
-1) What does AI stand for?
-2) What is a machine learning model?
-3) What is training data?
-4) What is a dataset?
-5) What is a feature?
-6) What is a label?
-7) What is supervised vs unsupervised learning?
-8) What is NLP?
-9) What is an LLM?
-10) What is a prompt?
-11) What is token?
-12) What is an embedding?
-13) What is a vector database?
-14) What is RAG?
-15) What is a hallucination?
-16) What is an API key?
-17) What is latency?
-18) What is throughput?
-19) What is caching?
-20) What is a model endpoint?
-21) What is JSON?
-22) What is HTTPS?
-23) What is rate limiting?
-24) What is environment variable?
-25) What is a secret?
-26) What is evaluation (evals)?
-27) What is cost per token?
-28) What is streaming response?
-29) What is prompting?
-30) What is top-p?
-31) What is temperature?
-32) What is grounding to documents?
-33) What is chunking?
-34) What is context window?
+Technical Questions - First Round Interview
 
-Medium (35-67)
-35) How would you build a simple RAG chatbot for FAQs.
-36) Choose chunk size and overlap.
-37) Store embeddings in a vector DB and query.
-38) How would you add citations in responses.
-39) Avoid prompt injection basics.
-40) Use a guardrail to filter outputs.
-41) How would you add a system prompt for behavior.
-42) Cache responses to save cost.
-43) How would you implement rate limiting.
-44) Track token usage and latency.
-45) Evaluate answers with a golden set.
-46) How would you implement streaming tokens to UI.
-47) How would you add a function/tool call for weather API.
-48) Structure outputs with JSON schema.
-49) Detect and mask PII.
-50) How would you implement safety filters.
-51) Use few-shot examples in prompts.
-52) How would you implement reranking after retrieval.
-53) Improve recall with query expansion.
-54) Compare embedding models.
-55) Secure API keys in env.
-56) Handle long context with summaries.
-57) How would you add telemetry for prompts.
-58) Use retries with backoff.
-59) How would you implement A/B testing for prompts.
-60) How would you add user conversation memory.
-61) Use hybrid search (BM25 + vectors).
-62) Handle null/irrelevant retrieval.
-63) Design a simple ingestion pipeline.
-64) How would you add admin tools to update knowledge.
-65) Evaluate hallucinations.
-66) Document the system and prompts.
-67) How would you build a demo UI for the bot.
+Arrays & Strings
+1) What is the difference between an array and a linked list?
+2) How do you find the largest and smallest element in an array?
+3) How do you reverse an array in place without using extra space?
+4) How do you remove duplicates from a sorted array?
+5) How do you rotate an array by k positions?
+6) How do you find the missing number in an array from 1 to n?
+7) How do you find the element that appears only once when others appear twice?
+8) How do you find the intersection of two arrays?
+9) How do you merge two sorted arrays into one sorted array?
+10) How do you move all zeros to the end of an array while maintaining order?
+11) How do you find the maximum sum subarray?
+12) How do you find the second largest element in an array?
+13) How do you find a pair with a given sum in an array?
+14) How do you check if an array is sorted and rotated?
+15) How do you find leaders in an array?
+16) How do you implement a dynamic array conceptually?
+17) How do you reverse a string without using built-in functions?
+18) How do you check if two strings are anagrams?
+19) How do you find the first non-repeating character in a string?
+20) How do you remove duplicate characters from a string?
+21) How do you check if a string is a palindrome ignoring case and symbols?
+22) How do you find the longest common prefix among strings?
+23) How do you find the longest substring without repeating characters?
+24) How do you count character frequencies in a string?
+25) How do you compress a string using run-length encoding?
 
-Hard (68-100)
-68) Scale RAG to multiple collections.
-69) How would you build a multi-turn memory system.
-70) How would you add tool orchestration for multiple APIs.
-71) How would you implement safe tool calling.
-72) How would you build domain-specific evals.
-73) How would you add continuous evaluation in CI.
-74) Reduce cost with semantic caching.
-75) How would you implement LoRA fine-tuning basics.
-76) How would you add structured extraction with constraints.
-77) How would you implement triage/fallback across models.
-78) How would you build a trace-based observability.
-79) How would you add multi-tenant isolation.
-80) How would you implement data retention policies.
-81) How would you build an audit log for prompts/outputs.
-82) Design privacy-preserving analytics.
-83) How would you add real-time streaming to many users.
-84) How would you implement a plugin framework.
-85) How would you add automatic redaction.
-86) How would you implement continuous ingestion updates.
-87) How would you build a knowledge freshness strategy.
-88) How would you implement a secure webhook for updates.
-89) How would you add sandbox for third-party tools.
-90) How would you implement evaluation dashboards.
-91) How would you build cost budget alerts.
-92) How would you add governance for prompts.
-93) How would you implement user feedback loop.
-94) How would you add multi-modal inputs (text+image) basics.
-95) How would you implement offline inference strategy.
-96) How would you build a policy engine for outputs.
-97) How would you add content provenance markers.
-98) How would you implement a kill switch for models.
-99) Design a roadmap for scaling the bot.
-100) Document risk and safety plan.
+Linked Lists
+26) What is a linked list and how is it different from an array?
+27) How do you insert a node at the beginning of a linked list?
+28) How do you insert a node at the end of a linked list?
+29) How do you delete a node when only its pointer is given?
+30) How do you find the middle of a linked list in one pass?
+31) How do you detect a loop in a linked list?
+32) How do you remove a loop from a linked list?
+33) How do you reverse a singly linked list?
+34) How do you check if a linked list is a palindrome?
+35) How do you merge two sorted linked lists?
+36) How do you find the nth node from the end of a linked list?
+37) What is the difference between singly and doubly linked lists?
 
+Stacks, Queues & Heaps
+38) What is a stack and where is it used?
+39) How do you implement a stack using an array?
+40) How do you implement a stack using two queues?
+41) What is a queue and where is it used?
+42) How do you implement a queue using an array?
+43) How do you implement a queue using two stacks?
+44) What is a circular queue and why is it useful?
+45) How do you check balanced parentheses using a stack?
+46) What is a priority queue?
+47) What is a heap and its main properties?
+48) How do you find the k largest elements using a heap?
+49) How do you implement min-heap and max-heap conceptually?
 
+Trees & Graphs
+50) What is a binary tree and how is it different from a BST?
+51) What is a binary search tree and its main property?
+52) How do you insert and search in a BST?
+53) What are inorder, preorder, and postorder traversals?
+54) How do you find the height of a binary tree?
+55) How do you find minimum and maximum in a BST?
+56) How do you check if a binary tree is height-balanced?
+57) How do you check if two binary trees are identical?
+58) How do you find the lowest common ancestor of two nodes?
+59) How do you perform level-order traversal (BFS)?
+60) What is a graph in data structures?
+61) Difference between directed and undirected graphs?
+62) How do you represent a graph using adjacency list and matrix?
+63) What is DFS and where is it used?
+64) What is BFS and where is it used?
+65) How do you detect a cycle in an undirected graph?
+66) How do you detect a cycle in a directed graph?
+67) What is topological sorting and when is it used?
+68) How do you count connected components in a graph?
+69) How do you solve the "number of islands" problem?
+
+Searching, Sorting & Hashing
+70) How does linear search work and its time complexity?
+71) How does binary search work and its time complexity?
+72) What are the conditions required for binary search?
+73) How would you implement binary search?
+74) How does bubble sort work and why is it inefficient?
+75) How does selection sort work?
+76) How does insertion sort work and when is it efficient?
+77) How does merge sort work and its complexity?
+78) How does quicksort work and its average and worst-case complexity?
+79) Why is quicksort faster than merge sort in practice?
+80) What is counting sort and when is it useful?
+81) Why is time complexity important?
+82) What is a hash table and how does it store data?
+83) What are collisions and how are they handled?
+84) Difference between chaining and open addressing?
+85) What makes a good hash function?
+86) How do you use a hash map to count frequencies?
+
+Core Algorithmic Concepts
+87) What is time complexity and Big-O notation?
+88) What is space complexity and why does it matter?
+89) Difference between O(1), O(log n), O(n), O(n log n), and O(n²)?
+90) Difference between recursion and iteration?
+91) What is tail recursion?
+92) What is dynamic programming in simple terms?
+93) Difference between memoization and tabulation?
+94) What is a greedy algorithm with an example?
+95) When would you choose greedy over dynamic programming?
+96) What is backtracking and where is it used?
+
+Programming, OOP & Language Basics
+97) What are the basic data types in your programming language?
+98) Difference between == and .equals()?
+99) Difference between == and === in JavaScript?
+100) What is a pointer and how is it different from a reference?
+101) Difference between stack memory and heap memory?
+102) What is pass by value and pass by reference?
+103) What is an exception and how do you handle it?
+104) Difference between interface and abstract class?
+105) What is encapsulation and why is it important?
+106) What is inheritance and what problem does it solve?
+107) What is polymorphism with an example?
+108) Difference between method overloading and overriding?
+109) What is a constructor and when is it called?
+110) What is garbage collection?
+111) What is an immutable object?
+
+DBMS, OS & Networking (Fresher Level)
+112) What is a database and why is it used?
+113) Difference between SQL and NoSQL databases?
+114) What is a primary key and a foreign key?
+115) What is normalization in databases?
+116) What is an index and why is it useful?
+117) What is an operating system?
+118) Difference between a process and a thread?
+119) What is context switching?
+120) What is deadlock in simple terms?
+121) What is an IP address?
+122) Difference between TCP and UDP?
+123) What is DNS and what does it do?
+
+Projects & SDE Basics
+124) Walk me through one of your projects end to end.
+125) What was the biggest technical challenge in your project?
+126) Which part of your project are you most proud of?
+127) How did you test your project?
+128) How did you divide work in your project team?
+129) Why did you choose specific technologies for your project?
+130) How did you handle performance issues?
+131) How did you manage your project code using Git?
+132) Have you refactored your code? Why?
+133) What is your favorite programming language and why?
+134) How do you approach a new coding problem?
+135) How do you debug when your code is not working?
+136) What do you understand by clean code?
+137) How do you make your code readable for others?
+138) What Git commands do you use most frequently?

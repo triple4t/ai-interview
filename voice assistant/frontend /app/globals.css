@@ -528,3 +528,35 @@
     font-size: 2rem;
   }
 }
+
+/* Futuristic Admin Theme */
+.bg-slate-950 {
+  background-color: #0F172A;
+}
+
+/* Glassmorphism utilities */
+.backdrop-blur-xl {
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+}
+
+/* Smooth transitions for futuristic UI */
+.transition-all {
+  transition: all 0.2s ease;
+}
+
+/* Glow effects for AI indicators */
+@keyframes pulse-glow {
+  0%, 100% {
+    opacity: 1;
+    box-shadow: 0 0 10px currentColor;
+  }
+  50% {
+    opacity: 0.7;
+    box-shadow: 0 0 20px currentColor;
+  }
+}
+
+.animate-pulse-glow {
+  animation: pulse-glow 2s ease-in-out infinite;
+}

@@ -28,11 +28,9 @@ class ChatResponse(BaseModel):
 class VoiceAgentSession:
     def __init__(self):
         self.session = AgentSession(
-            llm=openai.realtime.RealtimeModel.with_azure(
-                azure_deployment="gpt-4o-realtime-preview",
-                azure_endpoint=os.getenv("AZURE_OPENAI_REALTIME_ENDPOINT"),
-                api_key=os.getenv("AZURE_OPENAI_REALTIME_API_KEY"),
-                api_version=os.getenv("AZURE_OPENAI_REALTIME_API_VERSION"),
+            llm=openai.realtime.RealtimeModel(
+                model="gpt-4o-realtime-preview",
+                api_key=os.getenv("OPENAI_API_KEY"),
                 turn_detection=TurnDetection(
                     type="server_vad",
                     threshold=0.5,

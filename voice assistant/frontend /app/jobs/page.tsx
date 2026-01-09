@@ -68,37 +68,49 @@ export default function JobsPage() {
   return (
     <div className="min-h-screen bg-background">
       <header className="border-b bg-card">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between h-16">
-            <div className="flex items-center space-x-4">
+        <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8">
+          <div className="flex flex-row items-center justify-between gap-2 sm:gap-4 h-auto sm:h-16 py-2 sm:py-0">
+            {/* Left side: Back button only on mobile, Back + Title on desktop */}
+            <div className="flex items-center space-x-2 sm:space-x-4">
               <Button
                 variant="ghost"
                 size="sm"
                 onClick={() => router.push("/resume")}
-                className="flex items-center space-x-2"
+                className="flex items-center space-x-1 sm:space-x-2 h-8 sm:h-9"
               >
-                <ArrowLeft className="h-4 w-4" />
-                <span>Back</span>
+                <ArrowLeft className="h-3 w-3 sm:h-4 sm:w-4" />
+                <span className="hidden sm:inline text-xs sm:text-sm">Back</span>
               </Button>
-              <h1 className="text-xl font-semibold flex items-center">
-                <Building className="h-5 w-5 mr-2" />
-                Recommended Jobs
+              {/* Title only visible on desktop */}
+              <h1 className="hidden sm:flex text-base sm:text-xl font-semibold items-center">
+                <Building className="h-4 w-4 sm:h-5 sm:w-5 mr-1.5 sm:mr-2" />
+                <span className="break-words text-sm sm:text-base">Recommended Jobs</span>
               </h1>
             </div>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => router.push("/resume")}
-              className="flex items-center space-x-2"
-            >
-              <FileText className="h-4 w-4" />
-              <span>Upload New Resume</span>
-            </Button>
+            
+            {/* Right side: Title on mobile, Upload button on desktop */}
+            <div className="flex items-center gap-2 sm:gap-0">
+              {/* Title visible only on mobile, positioned at right */}
+              <h1 className="flex sm:hidden text-sm font-semibold items-center">
+                <Building className="h-4 w-4 mr-1.5" />
+                <span className="break-words">Recommended Jobs</span>
+              </h1>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => router.push("/resume")}
+                className="flex items-center space-x-1.5 sm:space-x-2 h-8 sm:h-9 text-xs sm:text-sm px-2 sm:px-4 shrink-0"
+              >
+                <FileText className="h-3 w-3 sm:h-4 sm:w-4" />
+                <span className="hidden sm:inline">Upload New Resume</span>
+                <span className="sm:hidden">Upload</span>
+              </Button>
+            </div>
           </div>
         </div>
       </header>
 
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <main className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-3 sm:py-8">
         {jobRecommendations.length > 0 ? (
           <JobRecommendations
             jobs={jobRecommendations}
@@ -106,7 +118,7 @@ export default function JobsPage() {
               try {
                 // Automatically set the JD file for the LiveKit worker
                 if (job.jdSource) {
-                  const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8002/api/v1"}/interview/select-jd`, {
+                  const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8001/api/v1"}/interview/select-jd`, {
                     method: 'POST',
                     headers: {
                       'Content-Type': 'application/json',

@@ -390,89 +390,175 @@ export const SessionView = ({
         })),
       );
 
-      // Extract Q&A pairs from messages - all interview questions (up to 5)
-      let questionCount = 0;
-      const maxQuestions = 5;
+      // Extract Q&A pairs from messages - improved logic
       const questionAnswerPairs: { question: string; answer: string }[] = [];
+      
+      // Build a cleaner conversation flow
+      const conversationFlow: Array<{ role: string; content: string; index: number }> = [];
+      messages.forEach((msg, idx) => {
+        conversationFlow.push({
+          role: msg.from?.isLocal ? "user" : "assistant",
+          content: msg.message.trim(),
+          index: idx
+        });
+      });
 
-      for (
-        let i = 0;
-        i < messages.length && questionCount < maxQuestions;
-        i++
-      ) {
-        const msg = messages[i];
-        if (!msg.from?.isLocal) {
-          // This is an AI message
-          const messageContent = msg.message.toLowerCase();
+      console.log("📋 Full conversation flow:", conversationFlow.map(m => ({
+        role: m.role,
+        content: m.content.substring(0, 100) + (m.content.length > 100 ? "..." : "")
+      })));
 
-          // Skip greetings, acknowledgments, and closing remarks
-          const isGreeting =
-            (messageContent.includes("hello") ||
-              messageContent.includes("greet") ||
-              messageContent.includes("welcome") ||
-              messageContent.includes("hi")) &&
-            !msg.message.includes("?");
-          const isAcknowledgement =
-            (messageContent.includes("thank you") ||
-              messageContent.includes("great") ||
-              messageContent.includes("excellent") ||
-              messageContent.includes("good") ||
-              messageContent.includes("thanks")) &&
-            !messageContent.includes("question") &&
-            !msg.message.includes("?");
-          const isClosing =
+      // Improved question detection - look for assistant messages that are questions
+      let i = 0;
+      while (i < conversationFlow.length && questionAnswerPairs.length < 5) {
+        const msg = conversationFlow[i];
+        
+        if (msg.role === "assistant" && msg.content.length > 10) {
+          const messageContent = msg.content.toLowerCase();
+          
+          // Better question detection - check for question words or question marks
+          const hasQuestionMark = msg.content.includes("?");
+          const hasQuestionWords = 
+            messageContent.includes("what") ||
+            messageContent.includes("how") ||
+            messageContent.includes("why") ||
+            messageContent.includes("when") ||
+            messageContent.includes("where") ||
+            messageContent.includes("who") ||
+            messageContent.includes("can you") ||
+            messageContent.includes("tell me") ||
+            messageContent.includes("explain") ||
+            messageContent.includes("describe");
+          
+          // Skip obvious non-questions
+          const isSimpleGreeting = 
+            (messageContent.includes("hello") || 
+             messageContent.includes("hi") || 
+             messageContent.includes("welcome")) &&
+            !hasQuestionMark && 
+            !hasQuestionWords &&
+            msg.content.length < 50;
+          
+          const isSimpleClosing = 
             (messageContent.includes("thank you so much") ||
-              messageContent.includes("have a great day") ||
-              messageContent.includes("we'll be in touch")) &&
-            !msg.message.includes("?");
-          const isInstruction =
-            (messageContent.includes("say hello") ||
-              messageContent.includes("start the interview")) &&
-            !msg.message.includes("?");
+             messageContent.includes("have a great day") ||
+             messageContent.includes("we'll be in touch") ||
+             messageContent.includes("goodbye")) &&
+            !hasQuestionMark;
+          
+          const isSimpleAcknowledgment = 
+            (messageContent.includes("great") ||
+             messageContent.includes("excellent") ||
+             messageContent.includes("good") ||
+             messageContent.includes("thanks")) &&
+            !hasQuestionMark &&
+            !hasQuestionWords &&
+            msg.content.length < 100;
 
-          // Only count actual interview questions (not greetings, acknowledgments, or closings)
-          if (
-            !isGreeting &&
-            !isAcknowledgement &&
-            !isClosing &&
-            !isInstruction
-          ) {
-            const question = msg.message;
-            console.log(`🎯 Found question ${questionCount + 1}:`, question);
-            questionCount++;
-
+          // If it's a question (has question mark OR question words) and not a simple greeting/closing
+          if ((hasQuestionMark || hasQuestionWords) && !isSimpleGreeting && !isSimpleClosing && !isSimpleAcknowledgment) {
+            // Clean the question - remove transition phrases and extract only the actual question
+            let question = msg.content;
+            
+            // Remove common transition phrases that come before questions
+            const transitionPhrases = [
+              /^that'?s?\s+(absolutely\s+)?fine,?\s*no\s+problem\s+(at\s+all)?[.!]?\s*/i,
+              /^that'?s?\s+okay,?\s*no\s+worries?[.!]?\s*/i,
+              /^great!?\s*/i,
+              /^alright,?\s*/i,
+              /^perfect[.!]?\s*/i,
+              /^thanks?\s+(for\s+that)?[.!]?\s*/i,
+              /^okay,?\s*/i,
+              /^sure,?\s*no\s+problem[.!]?\s*/i,
+              /^let'?s?\s+move\s+on\s+(to\s+the\s+next\s+question)?[.!]?\s*/i,
+              /^moving\s+(forward|on)[,.]?\s*/i,
+              /^here'?s?\s+(another\s+one\s+for\s+you|the\s+next\s+question)[.!]?\s*/i,
+              /^now,?\s*/i,
+              /^so,?\s*/i,
+              /^well,?\s*/i,
+              /^i\s+see[.!]?\s*/i,
+              /^got\s+it[.!]?\s*/i,
+              /^makes\s+sense[.!]?\s*/i,
+              /^interesting[.!]?\s*/i,
+              /^good\s+point[.!]?\s*/i,
+              /^that'?s?\s+great[.!]?\s*/i,
+              /^i\s+see\s+what\s+you\s+mean[.!]?\s*/i,
+              /^okay,?\s+that\s+makes\s+sense[.!]?\s*/i,
+              /^interesting\s+approach[.!]?\s*/i,
+            ];
+            
+            // Remove transition phrases
+            for (const pattern of transitionPhrases) {
+              question = question.replace(pattern, '');
+            }
+            
+            // If question starts with "can you tell me" or similar, keep it but clean up
+            // Remove redundant phrases like "let me ask you about" or "I'd like to know"
+            question = question.replace(/^(let\s+me\s+ask\s+you\s+about|i'?d?\s+like\s+to\s+know|can\s+you\s+tell\s+me)\s*/i, '');
+            
+            // Clean up multiple spaces and trim
+            question = question.replace(/\s+/g, ' ').trim();
+            
+            // If question is empty after cleaning, use original
+            if (!question || question.length < 10) {
+              question = msg.content;
+            }
+            
+            console.log(`🎯 Found question ${questionAnswerPairs.length + 1}:`, question);
+            
             // Look for the next user message as the answer
             let foundAnswer = false;
-            for (let j = i + 1; j < messages.length; j++) {
-              const nextMsg = messages[j];
-              if (nextMsg.from?.isLocal) {
-                // This is a user message (answer)
-                const answer = nextMsg.message;
-                console.log(
-                  `💬 Found answer for question ${questionCount}:`,
-                  answer,
-                );
-                questionAnswerPairs.push({ question, answer });
+            let answer = "";
+            
+            // Search forward for user response
+            for (let j = i + 1; j < conversationFlow.length; j++) {
+              const nextMsg = conversationFlow[j];
+              
+              // If we hit another assistant question, stop searching
+              if (nextMsg.role === "assistant" && 
+                  (nextMsg.content.includes("?") || 
+                   nextMsg.content.toLowerCase().includes("what") ||
+                   nextMsg.content.toLowerCase().includes("how") ||
+                   nextMsg.content.toLowerCase().includes("can you"))) {
+                break;
+              }
+              
+              // Found user answer
+              if (nextMsg.role === "user" && nextMsg.content.trim().length > 0) {
+                answer = nextMsg.content.trim();
                 foundAnswer = true;
+                console.log(`💬 Found answer for question ${questionAnswerPairs.length + 1}:`, answer);
                 break;
               }
             }
-
-            // If no answer found, add empty answer
-            if (!foundAnswer) {
-              console.log(`⚠️ No answer found for question ${questionCount}`);
-              questionAnswerPairs.push({
-                question,
-                answer: "No answer provided",
-              });
+            
+            // Add the Q&A pair
+            questionAnswerPairs.push({
+              question: question,
+              answer: foundAnswer ? answer : "No answer provided"
+            });
+            
+            // Skip to after the answer (or after this question if no answer)
+            if (foundAnswer) {
+              // Find the index of the answer message and skip past it
+              for (let k = i + 1; k < conversationFlow.length; k++) {
+                if (conversationFlow[k].role === "user" && conversationFlow[k].content.trim() === answer) {
+                  i = k + 1;
+                  break;
+                }
+              }
+            } else {
+              i++;
             }
           } else {
-            console.log(
-              `⏭️ Skipping message (${messageContent.substring(0, 50)}...) - not a question`,
-            );
+            i++;
           }
+        } else {
+          i++;
         }
       }
+      
+      console.log(`✅ Extracted ${questionAnswerPairs.length} Q&A pairs:`, questionAnswerPairs);
 
       // Extract questions and answers from pairs
       const extractedQuestions = questionAnswerPairs.map(
@@ -487,10 +573,17 @@ export const SessionView = ({
       answers.push(...extractedAnswers);
 
       console.log(
-        `📝 Extracted ${questions.length} questions and ${answers.length} answers`,
+        `📝 Final extraction: ${questions.length} questions and ${answers.length} answers`,
       );
-      console.log("Questions:", questions);
-      console.log("Answers:", answers);
+      console.log("📋 Questions:", questions);
+      console.log("💬 Answers:", answers);
+      
+      // Log each pair for debugging
+      questionAnswerPairs.forEach((pair, idx) => {
+        console.log(`Pair ${idx + 1}:`);
+        console.log(`  Q: ${pair.question.substring(0, 100)}${pair.question.length > 100 ? "..." : ""}`);
+        console.log(`  A: ${pair.answer.substring(0, 100)}${pair.answer.length > 100 ? "..." : ""}`);
+      });
 
       // Generate session ID
       const sessionId = `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;

@@ -1,7 +1,7 @@
 import logging
 import os
 import random
-from typing import List
+from typing import List, Dict, Any, Optional
 
 from dotenv import load_dotenv
 from livekit.agents import (
@@ -22,6 +22,14 @@ from livekit.plugins import cartesia, deepgram, noise_cancellation, openai, sile
 from livekit.plugins.turn_detector.multilingual import MultilingualModel
 from livekit.plugins import openai
 from openai.types.beta.realtime.session import TurnDetection
+
+from app.services.adaptive_question_manager import (
+    AdaptiveQuestionManager,
+    InterviewPhase,
+    AnswerQuality,
+    QuestionContext
+)
+from app.services.answer_assessor import AnswerAssessor
 
 logger = logging.getLogger("agent")
 
@@ -88,10 +96,105 @@ def _load_questions_from_file(jd_filename: str) -> List[str]:
         logger.exception(f"[Interview] Exception while loading questions from: {questions_path}")
         return []
 
-def get_random_interview_questions() -> List[str]:
+def calculate_experience_years(resume_data: Optional[Dict[str, Any]]) -> float:
+    """Calculate total years of experience from resume data"""
+    if not resume_data:
+        return 0.0
+    
+    # First try explicit experience_years
+    if resume_data.get("experience_years"):
+        try:
+            return float(resume_data["experience_years"])
+        except (ValueError, TypeError):
+            pass
+    
+    # Calculate from roles/experiences
+    total_years = 0.0
+    experiences = resume_data.get("experiences", [])
+    roles = resume_data.get("roles", [])
+    
+    # Combine experiences and roles
+    all_roles = experiences + roles
+    
+    if not all_roles:
+        return 0.0
+    
+    # Calculate from role dates
+    from datetime import datetime
+    
+    for role in all_roles:
+        start_date = role.get("start_date") or role.get("start")
+        end_date = role.get("end_date") or role.get("end") or "present"
+        
+        if start_date:
+            try:
+                # Parse dates (simplified - handles YYYY-MM or YYYY-MM-DD)
+                if end_date.lower() == "present" or end_date.lower() == "current":
+                    end_date_obj = datetime.now()
+                else:
+                    # Try to parse date
+                    date_parts = end_date.split("-")
+                    if len(date_parts) >= 2:
+                        end_date_obj = datetime(int(date_parts[0]), int(date_parts[1]), 1)
+                    else:
+                        end_date_obj = datetime(int(date_parts[0]), 1, 1)
+                
+                start_parts = start_date.split("-")
+                if len(start_parts) >= 2:
+                    start_date_obj = datetime(int(start_parts[0]), int(start_parts[1]), 1)
+                else:
+                    start_date_obj = datetime(int(start_parts[0]), 1, 1)
+                
+                # Calculate years difference
+                years_diff = (end_date_obj - start_date_obj).days / 365.25
+                total_years += max(0, years_diff)
+            except (ValueError, TypeError, IndexError) as e:
+                logger.debug(f"Could not parse date for role: {start_date} - {end_date}: {e}")
+                continue
+    
+    return round(total_years, 1)
+
+
+def adjust_jd_filename_for_experience(jd_filename: str, experience_years: float) -> str:
+    """Adjust JD filename to use fresher version if experience is 0-2 years"""
+    if not jd_filename:
+        return jd_filename
+    
+    # If experience is 0-2 years, use fresher questions
+    if 0 <= experience_years <= 2:
+        # Check if filename already has a level suffix
+        base_name = jd_filename.replace('.txt', '')
+        
+        # Remove existing level suffixes
+        for suffix in ['_fresher', '_senior', '_junior', '_mid', '_mid_level']:
+            if base_name.endswith(suffix):
+                base_name = base_name[:-len(suffix)]
+                break
+        
+        # Add fresher suffix if not already present
+        if not base_name.endswith('_fresher'):
+            adjusted_filename = f"{base_name}_fresher.txt"
+            logger.info(f"[Interview] Experience is {experience_years} years (0-2), using fresher questions: {adjusted_filename}")
+            return adjusted_filename
+    
+    return jd_filename
+
+
+def get_random_interview_questions(resume_data: Optional[Dict[str, Any]] = None) -> List[str]:
     # Try dynamic source first
     logger.info("[Interview] ===== LOADING INTERVIEW QUESTIONS =====")
     jd_filename = _read_selected_jd_filename()
+    
+    # Calculate experience and adjust filename if needed
+    if resume_data:
+        experience_years = calculate_experience_years(resume_data)
+        logger.info(f"[Interview] Candidate experience: {experience_years} years")
+        
+        # Adjust JD filename for fresher (0-2 years experience)
+        jd_filename = adjust_jd_filename_for_experience(jd_filename, experience_years)
+    else:
+        logger.info("[Interview] No resume data available, using default JD filename")
+    
     logger.info(f"[Interview] Selected JD filename: {jd_filename}")
     
     dynamic_questions = _load_questions_from_file(jd_filename)
@@ -117,56 +220,283 @@ def get_random_interview_questions() -> List[str]:
         ]
         logger.info("[Interview] Using fallback static questions pool")
     
-    if len(questions_pool) >= 5:
-        logger.info(f"[Interview] Selecting 5 random questions from pool of {len(questions_pool)}")
-        selected_questions = random.sample(questions_pool, 5)
-        logger.info("[Interview] Selected questions for this session:")
-        for i, q in enumerate(selected_questions, 1):
-            logger.info(f"[Interview]   {i}. {q}")
-        logger.info("[Interview] ===== QUESTIONS LOADED SUCCESSFULLY =====")
-        return selected_questions
-    return questions_pool[:5]
+    # Return all questions for adaptive selection (not just 5)
+    logger.info(f"[Interview] Loaded {len(questions_pool)} questions for adaptive selection")
+    return questions_pool
+
+
+def load_resume_data_for_session(session_id: str) -> Optional[Dict[str, Any]]:
+    """Load resume data for a session"""
+    try:
+        from app.db.database import SessionLocal
+        from app.models.candidate import Resume
+        from app.models.recording import Recording
+        
+        db = SessionLocal()
+        try:
+            # Try to find recording by session_id to get candidate_id
+            recording = db.query(Recording).filter(
+                Recording.session_id == session_id
+            ).first()
+            
+            if recording and recording.candidate_id:
+                # Get latest resume for candidate
+                resume = db.query(Resume).filter(
+                    Resume.candidate_id == recording.candidate_id
+                ).order_by(Resume.created_at.desc()).first()
+                
+                if resume and resume.extracted_data:
+                    logger.info(f"[Interview] Loaded resume data for session {session_id}")
+                    return resume.extracted_data
+        finally:
+            db.close()
+    except Exception as e:
+        logger.warning(f"[Interview] Could not load resume data: {e}")
+    
+    return None
+
+
+def get_previous_interview_topics(user_id: Optional[int] = None) -> List[str]:
+    """Get topics covered in previous interviews"""
+    try:
+        from app.db.database import SessionLocal
+        from app.models.interview import InterviewResult
+        
+        if not user_id:
+            return []
+        
+        db = SessionLocal()
+        try:
+            # Get previous interview results
+            previous_interviews = db.query(InterviewResult).filter(
+                InterviewResult.user_id == user_id
+            ).order_by(InterviewResult.created_at.desc()).limit(5).all()
+            
+            topics = []
+            for interview in previous_interviews:
+                if interview.detailed_feedback:
+                    # Extract topics from detailed feedback
+                    for qa in interview.detailed_feedback:
+                        if isinstance(qa, dict) and "question" in qa:
+                            # Simple keyword extraction (can be enhanced)
+                            question = qa["question"].lower()
+                            # Extract key technical terms
+                            tech_terms = ["javascript", "python", "react", "node", "database", 
+                                        "api", "algorithm", "system", "design", "architecture"]
+                            for term in tech_terms:
+                                if term in question:
+                                    topics.append(term)
+            
+            # Deduplicate
+            unique_topics = list(set(topics))
+            logger.info(f"[Interview] Found {len(unique_topics)} previous topics")
+            return unique_topics
+        finally:
+            db.close()
+    except Exception as e:
+        logger.warning(f"[Interview] Could not load previous topics: {e}")
+    
+    return []
 
 
 class Assistant(Agent):
-    def __init__(self, session_questions: List[str], role_description: str = "technical role") -> None:
-        # Use questions passed from entrypoint instead of reading during init
+    def __init__(
+        self, 
+        session_questions: List[str], 
+        role_description: str = "technical role",
+        resume_data: Optional[Dict[str, Any]] = None,
+        previous_topics: Optional[List[str]] = None,
+        session_id: Optional[str] = None
+    ) -> None:
         self.session_questions = session_questions
-        super().__init__(
-            instructions=f"""
-You are an AI assistant conducting a technical interview for a {role_description}. Your persona is professional, direct, and focused.
-
-IMPORTANT: You MUST ALWAYS respond in ENGLISH ONLY, regardless of the language the user speaks or writes in. Even if the user responds in a 
-different language, you must continue the interview in English.
-
-Your task is to follow these steps precisely:
-1. As soon as the interview begins, you MUST speak first. Greet the candidate warmly, introduce yourself as their AI interviewer, and then immediately ask the first question.
-2. You will ask a total of EXACTLY FIVE questions. You must select five different, random questions from the list provided below. Do not ask more or fewer than five.
-3. Ask only one question at a time. After you ask a question, wait for the candidate to respond fully.
-4. After each of the candidate's answers, DO NOT provide any acknowledgments, feedback, or comments. Simply proceed directly to the next question without any hesitation or delay.
-5. After the candidate has answered the fifth and final question, you must conclude the interview immediately. Say something like, 'That was my final question. Thank you so much for your time today. We'll be in touch with the next steps. Have a great day!'.
-6. After you have said your concluding remarks, DO NOT say anything else. Your role in the conversation is over.
-
-CRITICAL BEHAVIOR RULES:
-- NEVER give feedback, acknowledgments, or comments on the candidate's answers
-- NEVER say things like 'Thank you for that' or 'Great answer' or 'I understand'
-- NEVER ask follow-up questions or request clarification
-- ALWAYS move directly to the next question immediately after the candidate finishes speaking
-- If the candidate says 'I don't know' or gives a brief answer, still move to the next question
-- If the candidate gives a long detailed answer, still move to the next question
-- Focus ONLY on asking the five questions and concluding the interview
-
-LANGUAGE POLICY:
-- Always respond in English, no matter what language the user uses
-- If the user responds in a different language, continue in English
-- Do not translate your questions or responses to other languages
-- Maintain professional English throughout the entire interview
-
-Here is the list of questions to choose from:
-- {'\n- '.join(self.session_questions)}
-"""
+        self.session_id = session_id or "default"
+        self.role_description = role_description
+        
+        # Initialize adaptive question manager
+        self.question_manager = AdaptiveQuestionManager(
+            session_id=self.session_id,
+            questions_pool=session_questions,
+            resume_data=resume_data,
+            previous_topics=previous_topics
         )
-        # Note: The 'lookup_weather' function has been removed as it's not relevant to the interviewer role.
+        
+        # Initialize answer assessor
+        self.answer_assessor = AnswerAssessor()
+        
+        # Track conversation
+        self.current_question_context: Optional[QuestionContext] = None
+        self.conversation_turn = 0
+        
+        # Build instructions with adaptive system
+        instructions = self._build_instructions()
+        
+        # Create function tools for adaptive questioning
+        @function_tool()
+        def get_next_question() -> str:
+            """Get the next question from the adaptive question system. Call this when you need to ask a new question."""
+            next_q = self.question_manager.get_next_question()
+            if next_q:
+                self.current_question_context = next_q
+                self.question_manager.record_question_asked(next_q)
+                logger.info(f"[Adaptive] Next question: {next_q.question} (type: {next_q.question_type}, phase: {next_q.phase.value})")
+                return next_q.question
+            else:
+                # Interview complete
+                return "INTERVIEW_COMPLETE"
+        
+        @function_tool()
+        def assess_answer(answer: str) -> str:
+            """Assess the candidate's answer quality. Call this after the candidate responds to understand their performance."""
+            if not self.current_question_context:
+                return "No current question to assess"
+            
+            # Assess using LLM
+            assessment_result = self.answer_assessor.assess_answer(
+                question=self.current_question_context.question,
+                answer=answer,
+                context={"phase": self.question_manager.current_phase.value}
+            )
+            
+            # Convert to AnswerAssessment
+            from app.services.adaptive_question_manager import AnswerAssessment
+            answer_assessment = AnswerAssessment(
+                question=self.current_question_context.question,
+                answer=answer,
+                quality=AnswerQuality(assessment_result["quality"]),
+                score=assessment_result["score"],
+                strengths=assessment_result.get("strengths", []),
+                weaknesses=assessment_result.get("weaknesses", []),
+                topics_covered=assessment_result.get("topics_covered", []),
+                needs_followup=assessment_result.get("needs_followup", False)
+            )
+            
+            self.question_manager.answers_assessed.append(answer_assessment)
+            self.question_manager._update_difficulty(assessment_result["score"])
+            
+            logger.info(f"[Adaptive] Answer assessed: {assessment_result['quality']} (score: {assessment_result['score']})")
+            
+            # Return summary for the LLM
+            quality = assessment_result["quality"]
+            score = assessment_result["score"]
+            needs_followup = assessment_result.get("needs_followup", False)
+            
+            if quality == "excellent":
+                return f"Excellent answer (score: {score}). The candidate demonstrated strong understanding. {'Consider asking a follow-up to go deeper.' if needs_followup else 'You can move to the next question.'}"
+            elif quality == "good":
+                return f"Good answer (score: {score}). The candidate showed solid understanding. {'Consider asking a follow-up.' if needs_followup else 'You can move to the next question.'}"
+            elif quality == "fair":
+                return f"Fair answer (score: {score}). The candidate showed basic knowledge but could elaborate more. Consider asking a follow-up to probe deeper."
+            else:
+                return f"Poor answer (score: {score}). The candidate struggled with this question. Be supportive and move to the next question."
+        
+        # Store tools as instance methods for access
+        self._get_next_question = get_next_question
+        self._assess_answer = assess_answer
+        
+        # Initialize Agent with instructions
+        # Function tools should be automatically detected by LiveKit Agent framework
+        super().__init__(
+            instructions=instructions
+        )
+    
+    def _build_instructions(self) -> str:
+        """Build dynamic instructions based on interview state"""
+        return f"""
+You are a friendly, supportive AI technical interviewer conducting a first-round interview for a {self.role_description}. Your persona is warm, encouraging, and helpful — like a friendly human interviewer who wants to see candidates succeed.
+
+🚨 CRITICAL RULE - READ THIS FIRST 🚨
+YOU ARE AN INTERVIEWER. YOUR ONLY JOB IS TO ASK QUESTIONS AND LISTEN TO ANSWERS.
+- YOU MUST NEVER ANSWER THE QUESTIONS YOU ASK
+- YOU MUST NEVER PROVIDE SOLUTIONS OR EXPLANATIONS THAT REVEAL ANSWERS
+- YOU MUST NEVER TEACH OR EXPLAIN CONCEPTS IN DETAIL
+- YOU MUST NEVER GIVE HINTS OR SUGGESTIONS UNLESS THE USER EXPLICITLY ASKS FOR THEM
+- IF THE CANDIDATE ASKS YOU A QUESTION, POLITELY REDIRECT BACK TO YOUR QUESTIONS
+- YOU ONLY ASK QUESTIONS - YOU NEVER ANSWER THEM OR GIVE HINTS
+
+IMPORTANT: You MUST ALWAYS respond in ENGLISH ONLY, regardless of the language the user speaks or writes in.
+
+========================
+ADAPTIVE INTERVIEW STRUCTURE
+========================
+The interview follows an adaptive structure:
+
+1. INTRODUCTION PHASE (First question)
+   - Always start with: "Could you please introduce yourself and tell me a bit about your background?"
+   - Use the get_next_question() function to get this question
+   - Listen actively and acknowledge their response
+
+2. RESUME DEEP DIVE PHASE (~20% of questions)
+   - Ask questions about their resume, experiences, projects
+   - Probe their background and past work
+   - Make it conversational and natural
+   - Use get_next_question() to get resume-based questions
+
+3. TECHNICAL QUESTIONS PHASE (~70% of questions)
+   - Ask technical questions from the provided pool
+   - Questions are selected adaptively based on performance
+   - Use get_next_question() to get technical questions
+
+4. FOLLOW-UP QUESTIONS (~10% of questions)
+   - Generated dynamically based on their answers
+   - Probe weak areas or go deeper into strong areas
+   - Use get_next_question() to get follow-up questions
+
+========================
+HOW TO USE THE ADAPTIVE SYSTEM
+========================
+1. To get a question: Call get_next_question() function
+   - This returns the next question you should ask
+   - If it returns "INTERVIEW_COMPLETE", end the interview
+
+2. After the candidate answers: Call assess_answer(answer) function
+   - Pass the candidate's answer as a string
+   - This will assess the answer and guide you on next steps
+   - The function returns guidance like "Excellent answer" or "Consider asking a follow-up"
+
+3. Flow:
+   - Call get_next_question() → Ask the question naturally
+   - Wait for candidate response
+   - Call assess_answer(candidate_response) → Get guidance
+   - Based on guidance, either ask follow-up or get next question
+   - Repeat until interview is complete
+
+========================
+CONVERSATION FLOW
+========================
+1. Start the interview immediately when the session begins
+2. Greet warmly: "Hi! Thanks for joining us today. I'm [your name], and I'll be conducting your interview today. I'm excited to learn more about your background and experience."
+3. Call get_next_question() to get the first question (introduction)
+4. After each candidate response:
+   - Call assess_answer(candidate_response) to assess their answer
+   - Give friendly acknowledgments: "That's great!", "I see", "Interesting", "Good point"
+   - Based on the assessment:
+     * If excellent/good: You may ask a follow-up OR get the next question
+     * If fair/poor: Be supportive ("That's okay, no worries") and get the next question
+   - Use get_next_question() to get the next question when ready
+5. Use natural transitions between questions: "Great! Let's move on...", "Alright, here's another one..."
+6. When get_next_question() returns "INTERVIEW_COMPLETE", conclude the interview
+
+========================
+CRITICAL RULES
+========================
+- NEVER provide answers or hints
+- NEVER explain concepts in detail
+- NEVER give away solutions
+- ALWAYS ask questions - never answer them
+- Be warm, friendly, and encouraging
+- Adjust your tone based on their performance (more supportive if struggling)
+- ALWAYS use get_next_question() to get questions - don't make up questions
+- ALWAYS call assess_answer() after each response to understand performance
+
+========================
+INTERVIEW ENDING
+========================
+When get_next_question() returns "INTERVIEW_COMPLETE", conclude warmly:
+
+"That concludes our interview. Thank you so much for taking the time to speak with me today. I really enjoyed our conversation. We'll review everything and get back to you with the next steps. Have a great day!"
+
+After this message, end the conversation completely.
+"""
 
 
 def prewarm(proc: JobProcess):
@@ -179,9 +509,49 @@ async def entrypoint(ctx: JobContext):
         "room": ctx.room.name,
     }
 
-    # Read JD file dynamically for each session
-    session_questions = get_random_interview_questions()
-    logger.info(f"[Interview] Session {ctx.room.name}: Loaded {len(session_questions)} questions")
+    session_id = ctx.room.name
+    logger.info(f"[Interview] Starting session: {session_id}")
+
+    # Load resume data first (needed for experience-based question selection)
+    resume_data = load_resume_data_for_session(session_id)
+    if resume_data:
+        logger.info(f"[Interview] ✅ Loaded resume data for adaptive questioning")
+        logger.info(f"[Interview] Resume data keys: {list(resume_data.keys()) if isinstance(resume_data, dict) else 'N/A'}")
+    else:
+        logger.info(f"[Interview] ⚠️ No resume data found, will skip resume questions")
+
+    # Read JD file dynamically for each session (pass resume_data to adjust for experience)
+    session_questions = get_random_interview_questions(resume_data=resume_data)
+    logger.info(f"[Interview] Session {session_id}: Loaded {len(session_questions)} questions")
+
+    # Get previous interview topics to avoid repetition
+    previous_topics = []
+    try:
+        from app.db.database import SessionLocal
+        from app.models.recording import Recording
+        
+        db = SessionLocal()
+        try:
+            recording = db.query(Recording).filter(
+                Recording.session_id == session_id
+            ).first()
+            if recording:
+                # Try to get user_id from candidate
+                if hasattr(recording, 'candidate') and recording.candidate:
+                    user_id = recording.candidate.user_id
+                    previous_topics = get_previous_interview_topics(user_id)
+                    if previous_topics:
+                        logger.info(f"[Interview] ✅ Loaded {len(previous_topics)} previous topics to avoid")
+                    else:
+                        logger.info(f"[Interview] No previous interview topics found")
+                else:
+                    logger.info(f"[Interview] No candidate found for recording")
+            else:
+                logger.info(f"[Interview] No recording found for session {session_id}, will start fresh")
+        finally:
+            db.close()
+    except Exception as e:
+        logger.warning(f"[Interview] Could not load previous topics: {e}", exc_info=True)
 
     # Determine role description from JD filename
     jd_filename = _read_selected_jd_filename()
@@ -194,11 +564,9 @@ async def entrypoint(ctx: JobContext):
 
     # Set up a voice AI pipeline using OpenAI and the LiveKit turn detector
     session = AgentSession(
-        llm=openai.realtime.RealtimeModel.with_azure(
-            azure_deployment="gpt-4o-realtime-preview",
-            azure_endpoint=os.getenv("AZURE_OPENAI_REALTIME_ENDPOINT"),
-            api_key=os.getenv("AZURE_OPENAI_REALTIME_API_KEY"),
-            api_version=os.getenv("AZURE_OPENAI_REALTIME_API_VERSION"),
+        llm=openai.realtime.RealtimeModel(
+            model="gpt-4o-realtime-preview",
+            api_key=os.getenv("OPENAI_API_KEY"),
             turn_detection=TurnDetection(
                 type="server_vad",
                 threshold=0.8,
@@ -221,6 +589,29 @@ async def entrypoint(ctx: JobContext):
         metrics.log_metrics(ev.metrics)
         usage_collector.collect(ev.metrics)
 
+    # Capture user transcriptions for logging and debugging
+    # Note: LiveKit agents framework handles transcriptions automatically
+    # The transcriptions are sent to the frontend via LiveKit's transcription events
+    # We just log for debugging purposes
+    try:
+        # Try to set up transcription event handlers if available
+        # The exact event names may vary based on LiveKit agents version
+        @session.on("user_speech_committed")
+        def _on_user_speech(ev):
+            """Log user speech transcriptions"""
+            if hasattr(ev, 'text') and ev.text:
+                logger.info(f"[Interview] User said: {ev.text}")
+            elif hasattr(ev, 'transcript') and ev.transcript:
+                logger.info(f"[Interview] User transcript: {ev.transcript}")
+            else:
+                logger.info(f"[Interview] User speech event received: {type(ev)}")
+    except Exception as e:
+        # Event might not exist in this version, that's okay
+        logger.debug(f"[Interview] Could not set up user_speech_committed handler: {e}")
+
+    # Log that transcription is enabled
+    logger.info("[Interview] Transcription enabled - user speech will be transcribed and sent to frontend via LiveKit")
+
     async def log_usage():
         summary = usage_collector.get_summary()
         logger.info(f"Usage: {summary}")
@@ -228,8 +619,20 @@ async def entrypoint(ctx: JobContext):
     # shutdown callbacks are triggered when the session is over
     ctx.add_shutdown_callback(log_usage)
 
+    # Create Assistant with adaptive question manager
+    assistant = Assistant(
+        session_questions, 
+        role_description,
+        resume_data=resume_data,
+        previous_topics=previous_topics,
+        session_id=session_id
+    )
+    
+    logger.info(f"[Interview] ✅ Assistant initialized with adaptive question manager")
+    logger.info(f"[Interview] Interview state: {assistant.question_manager.get_interview_state()}")
+
     await session.start(
-        agent=Assistant(session_questions, role_description),
+        agent=assistant,
         room=ctx.room,
         room_input_options=RoomInputOptions(
             # LiveKit Cloud enhanced noise cancellation

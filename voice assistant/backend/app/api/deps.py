@@ -63,4 +63,35 @@ def get_optional_user(
         # In production, you might want to implement session-based auth or other methods
         return None
     except:
-        return None 
+        return None
+
+
+# Admin authentication dependencies
+from app.models.admin import AdminUser
+
+def get_admin_user(
+    credentials: HTTPAuthorizationCredentials = Depends(security),
+    db: Session = Depends(get_db)
+) -> AdminUser:
+    """Get current admin user from token"""
+    token = credentials.credentials
+    token_data = verify_token(token)
+    if token_data is None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Could not validate credentials",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    
+    admin_user = db.query(AdminUser).filter(
+        AdminUser.email == token_data.email
+    ).first()
+    
+    if admin_user is None or not admin_user.is_active:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Admin user not found or inactive",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    
+    return admin_user 

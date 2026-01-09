@@ -13,13 +13,25 @@ export default function useChatAndTranscription() {
   const room = useRoomContext();
 
   const mergedTranscriptions = useMemo(() => {
+    const localParticipant = room?.localParticipant;
+    const localIdentity = localParticipant?.identity;
+    
     const merged: Array<ReceivedChatMessage> = [
-      ...transcriptions.map((transcription) => ({
-        id: transcription.streamInfo.id,
-        timestamp: transcription.streamInfo.timestamp,
-        message: transcription.text,
-        from: undefined,
-      })),
+      ...transcriptions.map((transcription) => {
+        // Determine if this transcription is from the local user
+        const isLocal = transcription.participant?.identity === localIdentity;
+        
+        return {
+          id: transcription.streamInfo.id,
+          timestamp: transcription.streamInfo.timestamp,
+          message: transcription.text,
+          from: {
+            isLocal: isLocal,
+            identity: transcription.participant?.identity,
+            name: transcription.participant?.name,
+          },
+        };
+      }),
       ...chat.chatMessages,
     ];
     return merged.sort((a, b) => a.timestamp - b.timestamp);

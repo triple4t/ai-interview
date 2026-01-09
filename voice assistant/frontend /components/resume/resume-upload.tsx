@@ -187,19 +187,19 @@ export const ResumeUpload = ({
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.5 }}
-      className="w-full max-w-2xl mx-auto"
+      className="w-full max-w-2xl mx-auto px-2 sm:px-0"
     >
       <Card className="w-full">
-        <CardHeader className="text-center">
-          <CardTitle className="text-2xl">Upload Your Resume</CardTitle>
-          <CardDescription>
+        <CardHeader className="text-center p-4 sm:p-6">
+          <CardTitle className="text-lg sm:text-2xl">Upload Your Resume</CardTitle>
+          <CardDescription className="text-xs sm:text-sm mt-1 sm:mt-2">
             Upload your resume to get personalized job recommendations using AI
             analysis
           </CardDescription>
         </CardHeader>
-        <CardContent className="space-y-6">
+        <CardContent className="space-y-3 sm:space-y-6 p-4 sm:p-6">
           <div
-            className={`border-2 border-dashed rounded-lg p-8 text-center transition-colors ${
+            className={`border-2 border-dashed rounded-lg p-4 sm:p-8 text-center transition-colors ${
               uploadedFile
                 ? "border-green-500 bg-green-50"
                 : "border-gray-300 hover:border-gray-400"
@@ -216,35 +216,37 @@ export const ResumeUpload = ({
             />
 
             {!uploadedFile ? (
-              <div className="space-y-4">
-                <Upload className="mx-auto h-12 w-12 text-gray-400" />
+              <div className="space-y-2 sm:space-y-4">
+                <Upload className="mx-auto h-8 w-8 sm:h-12 sm:w-12 text-gray-400" />
                 <div>
-                  <p className="text-lg font-medium">Drop your resume here</p>
-                  <p className="text-sm text-gray-500">
+                  <p className="text-sm sm:text-lg font-medium">Drop your resume here</p>
+                  <p className="text-xs sm:text-sm text-gray-500">
                     or click to browse (PDF only)
                   </p>
                 </div>
                 <Button
                   variant="outline"
                   onClick={() => fileInputRef.current?.click()}
+                  className="h-8 sm:h-10 text-xs sm:text-sm"
                 >
                   Choose File
                 </Button>
               </div>
             ) : (
-              <div className="space-y-4">
-                <CheckCircle className="mx-auto h-12 w-12 text-green-500" />
+              <div className="space-y-2 sm:space-y-4">
+                <CheckCircle className="mx-auto h-8 w-8 sm:h-12 sm:w-12 text-green-500" />
                 <div>
-                  <p className="text-lg font-medium text-green-700">
+                  <p className="text-sm sm:text-lg font-medium text-green-700 break-words px-2">
                     {uploadedFile.name}
                   </p>
-                  <p className="text-sm text-green-600">
+                  <p className="text-xs sm:text-sm text-green-600">
                     File selected successfully
                   </p>
                 </div>
                 <Button
                   variant="outline"
                   onClick={() => fileInputRef.current?.click()}
+                  className="h-8 sm:h-10 text-xs sm:text-sm"
                 >
                   Choose Different File
                 </Button>
@@ -256,10 +258,10 @@ export const ResumeUpload = ({
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
-              className="flex items-center space-x-2 p-3 bg-red-50 border border-red-200 rounded-lg"
+              className="flex items-center space-x-2 p-2 sm:p-3 bg-red-50 border border-red-200 rounded-lg"
             >
-              <Warning className="h-5 w-5 text-red-500" />
-              <span className="text-red-700 text-sm">{errorMessage}</span>
+              <Warning className="h-4 w-4 sm:h-5 sm:w-5 text-red-500 shrink-0" />
+              <span className="text-red-700 text-xs sm:text-sm break-words">{errorMessage}</span>
             </motion.div>
           )}
 
@@ -267,10 +269,10 @@ export const ResumeUpload = ({
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
-              className="flex items-center space-x-2 p-3 bg-green-50 border border-green-200 rounded-lg"
+              className="flex items-center space-x-2 p-2 sm:p-3 bg-green-50 border border-green-200 rounded-lg"
             >
-              <CheckCircle className="h-5 w-5 text-green-500" />
-              <span className="text-green-700 text-sm">
+              <CheckCircle className="h-4 w-4 sm:h-5 sm:w-5 text-green-500 shrink-0" />
+              <span className="text-green-700 text-xs sm:text-sm">
                 Resume uploaded successfully!
               </span>
             </motion.div>
@@ -280,10 +282,10 @@ export const ResumeUpload = ({
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
-              className="flex items-center space-x-2 p-3 bg-blue-50 border border-blue-200 rounded-lg"
+              className="flex items-center space-x-2 p-2 sm:p-3 bg-blue-50 border border-blue-200 rounded-lg"
             >
-              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-500"></div>
-              <span className="text-blue-700 text-sm">
+              <div className="animate-spin rounded-full h-3 w-3 sm:h-4 sm:w-4 border-b-2 border-blue-500 shrink-0"></div>
+              <span className="text-blue-700 text-xs sm:text-sm">
                 Analyzing resume and finding job matches...
               </span>
             </motion.div>
@@ -292,22 +294,21 @@ export const ResumeUpload = ({
           <Button
             onClick={handleUpload}
             disabled={!uploadedFile || isUploading || isAnalyzing}
-            className="w-full"
-            size="lg"
+            className="w-full h-9 sm:h-11 text-sm sm:text-base"
           >
             {isUploading || isAnalyzing ? (
               <div className="flex items-center space-x-2">
-                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-                <span>
+                <div className="animate-spin rounded-full h-3 w-3 sm:h-4 sm:w-4 border-b-2 border-white"></div>
+                <span className="text-xs sm:text-sm">
                   {isUploading
                     ? "Uploading..."
                     : "Analyzing & Finding Matches..."}
                 </span>
               </div>
             ) : (
-              <div className="flex items-center space-x-2">
-                <MagnifyingGlass className="h-5 w-5" />
-                <span>Upload Resume & Get AI Recommendations</span>
+              <div className="flex items-center space-x-1 sm:space-x-2">
+                <MagnifyingGlass className="h-4 w-4 sm:h-5 sm:w-5" />
+                <span className="text-xs sm:text-base">Upload Resume & Get AI Recommendations</span>
               </div>
             )}
           </Button>

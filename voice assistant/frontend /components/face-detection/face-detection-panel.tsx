@@ -372,37 +372,37 @@ export const FaceDetectionPanel = forwardRef<
           animate={{ opacity: 1, x: 0 }}
           exit={{ opacity: 0, x: 300 }}
           transition={{ duration: 0.25 }}
-          className={`fixed right-4 top-4 w-80 z-50 ${className}`}
+          className={`fixed right-2 sm:right-4 top-2 sm:top-4 bottom-2 sm:bottom-auto w-[calc(100%-1rem)] sm:w-80 max-w-sm z-50 ${className}`}
         >
-          <Card className="shadow-lg border-2">
-            <CardHeader className="pb-3">
+          <Card className="shadow-lg border-2 h-full sm:h-auto flex flex-col max-h-[calc(100vh-1rem)] sm:max-h-none">
+            <CardHeader className="pb-2 sm:pb-3 p-3 sm:p-6">
               <div className="flex items-center justify-between">
-                <CardTitle className="flex items-center gap-2 text-lg">
-                  <Camera size={20} />
+                <CardTitle className="flex items-center gap-1.5 sm:gap-2 text-sm sm:text-lg">
+                  <Camera size={16} className="sm:w-5 sm:h-5" />
                   Face Analysis
                 </CardTitle>
                 <Button
                   variant="ghost"
                   size="sm"
                   onClick={onToggle}
-                  className="h-8 w-8 p-0"
+                  className="h-7 w-7 sm:h-8 sm:w-8 p-0"
                 >
-                  <X size={16} />
+                  <X size={14} className="sm:w-4 sm:h-4" />
                 </Button>
               </div>
             </CardHeader>
 
-            <CardContent className="space-y-4">
+            <CardContent className="space-y-2 sm:space-y-4 p-3 sm:p-6 pt-0 overflow-y-auto flex-1">
               {/* Connection Status */}
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-1.5 sm:gap-2">
                 <div
-                  className={`w-3 h-3 rounded-full ${isConnected ? "bg-green-500" : "bg-red-500"}`}
+                  className={`w-2 h-2 sm:w-3 sm:h-3 rounded-full ${isConnected ? "bg-green-500" : "bg-red-500"}`}
                 />
-                <span className="text-sm font-medium">
+                <span className="text-xs sm:text-sm font-medium">
                   {isConnected ? "Connected" : "Disconnected"}
                 </span>
                 {isLoading && (
-                  <span className="text-sm text-muted-foreground">
+                  <span className="text-xs sm:text-sm text-muted-foreground">
                     Connecting...
                   </span>
                 )}
@@ -410,9 +410,9 @@ export const FaceDetectionPanel = forwardRef<
 
               {/* Error */}
               {error && (
-                <Alert variant="destructive">
-                  <Warning size={16} />
-                  <AlertDescription>{error}</AlertDescription>
+                <Alert variant="destructive" className="p-2 sm:p-3">
+                  <Warning size={14} className="sm:w-4 sm:h-4" />
+                  <AlertDescription className="text-xs sm:text-sm break-words">{error}</AlertDescription>
                 </Alert>
               )}
 
@@ -420,7 +420,7 @@ export const FaceDetectionPanel = forwardRef<
               <div className="relative">
                 <video
                   ref={videoRef}
-                  className="w-full h-48 object-cover rounded-lg border bg-black"
+                  className="w-full h-32 sm:h-48 object-cover rounded-lg border bg-black"
                   playsInline
                   muted
                   autoPlay
@@ -431,7 +431,7 @@ export const FaceDetectionPanel = forwardRef<
                   </div>
                 )}
                 {!cameraStarted && !error && (
-                  <div className="absolute inset-0 flex items-center justify-center text-white/80 text-sm">
+                  <div className="absolute inset-0 flex items-center justify-center text-white/80 text-xs sm:text-sm px-2 text-center">
                     {isConnected
                       ? "Camera not started yet…"
                       : "Waiting for connection…"}
@@ -441,13 +441,14 @@ export const FaceDetectionPanel = forwardRef<
 
               {/* Analysis */}
               {Object.keys(analysisData).length > 0 && (
-                <div className="space-y-3">
+                <div className="space-y-2 sm:space-y-3">
                   <div className="flex items-center justify-between">
-                    <span className="text-sm font-medium">Face Detected:</span>
+                    <span className="text-xs sm:text-sm font-medium">Face Detected:</span>
                     <Badge
                       variant={
                         analysisData.face_detected ? "default" : "secondary"
                       }
+                      className="text-xs px-1.5 py-0.5"
                     >
                       {analysisData.face_detected ? "Yes" : "No"}
                     </Badge>
@@ -455,11 +456,11 @@ export const FaceDetectionPanel = forwardRef<
 
                   {analysisData.emotion && (
                     <div className="flex items-center justify-between">
-                      <span className="text-sm font-medium flex items-center gap-1">
-                        <Smiley size={16} />
+                      <span className="text-xs sm:text-sm font-medium flex items-center gap-1">
+                        <Smiley size={12} className="sm:w-4 sm:h-4" />
                         Emotion:
                       </span>
-                      <Badge className={getEmotionColor(analysisData.emotion)}>
+                      <Badge className={`${getEmotionColor(analysisData.emotion)} text-xs px-1.5 py-0.5`}>
                         {analysisData.emotion}
                       </Badge>
                     </div>
@@ -467,12 +468,12 @@ export const FaceDetectionPanel = forwardRef<
 
                   {analysisData.eye_state && (
                     <div className="flex items-center justify-between">
-                      <span className="text-sm font-medium flex items-center gap-1">
-                        <Eye size={16} />
+                      <span className="text-xs sm:text-sm font-medium flex items-center gap-1">
+                        <Eye size={12} className="sm:w-4 sm:h-4" />
                         Eye State:
                       </span>
                       <Badge
-                        className={getEyeStateColor(analysisData.eye_state)}
+                        className={`${getEyeStateColor(analysisData.eye_state)} text-xs px-1.5 py-0.5`}
                       >
                         {analysisData.eye_state}
                       </Badge>
@@ -481,11 +482,9 @@ export const FaceDetectionPanel = forwardRef<
 
                   {analysisData.engagement_level && (
                     <div className="flex items-center justify-between">
-                      <span className="text-sm font-medium">Engagement:</span>
+                      <span className="text-xs sm:text-sm font-medium">Engagement:</span>
                       <Badge
-                        className={getEngagementColor(
-                          analysisData.engagement_level,
-                        )}
+                        className={`${getEngagementColor(analysisData.engagement_level)} text-xs px-1.5 py-0.5`}
                       >
                         {analysisData.engagement_level}
                       </Badge>
@@ -494,8 +493,8 @@ export const FaceDetectionPanel = forwardRef<
 
                   {typeof analysisData.confidence === "number" && (
                     <div className="flex items-center justify-between">
-                      <span className="text-sm font-medium">Confidence:</span>
-                      <span className="text-sm text-muted-foreground">
+                      <span className="text-xs sm:text-sm font-medium">Confidence:</span>
+                      <span className="text-xs sm:text-sm text-muted-foreground">
                         {Math.round(analysisData.confidence * 100)}%
                       </span>
                     </div>
@@ -503,21 +502,21 @@ export const FaceDetectionPanel = forwardRef<
 
                   {typeof analysisData.attention_score === "number" && (
                     <div className="flex items-center justify-between">
-                      <span className="text-sm font-medium">Attention:</span>
-                      <span className="text-sm text-muted-foreground">
+                      <span className="text-xs sm:text-sm font-medium">Attention:</span>
+                      <span className="text-xs sm:text-sm text-muted-foreground">
                         {Math.round(analysisData.attention_score * 100)}%
                       </span>
                     </div>
                   )}
 
                   {/* Enhanced */}
-                  <div className="border-t pt-3 mt-3">
-                    <h4 className="text-sm font-medium mb-2 text-blue-600">
+                  <div className="border-t pt-2 sm:pt-3 mt-2 sm:mt-3">
+                    <h4 className="text-xs sm:text-sm font-medium mb-1.5 sm:mb-2 text-blue-600">
                       Enhanced Analysis
                     </h4>
 
                     {analysisData.eye_tracking && (
-                      <div className="space-y-2 mb-3">
+                      <div className="space-y-1.5 sm:space-y-2 mb-2 sm:mb-3">
                         <div className="flex items-center justify-between">
                           <span className="text-xs font-medium">
                             Eye Tracking:
@@ -529,6 +528,7 @@ export const FaceDetectionPanel = forwardRef<
                                 ? "default"
                                 : "secondary"
                             }
+                            className="text-xs px-1.5 py-0.5"
                           >
                             {analysisData.eye_tracking.eye_tracking ||
                               "unknown"}
@@ -549,7 +549,7 @@ export const FaceDetectionPanel = forwardRef<
                     )}
 
                     {analysisData.head_pose && (
-                      <div className="space-y-2 mb-3">
+                      <div className="space-y-1.5 sm:space-y-2 mb-2 sm:mb-3">
                         <div className="flex items-center justify-between">
                           <span className="text-xs font-medium">
                             Head Pose:
@@ -560,6 +560,7 @@ export const FaceDetectionPanel = forwardRef<
                                 ? "default"
                                 : "secondary"
                             }
+                            className="text-xs px-1.5 py-0.5"
                           >
                             {analysisData.head_pose.head_pose || "unknown"}
                           </Badge>
@@ -578,7 +579,7 @@ export const FaceDetectionPanel = forwardRef<
                     )}
 
                     {analysisData.multiple_faces && (
-                      <div className="space-y-2 mb-3">
+                      <div className="space-y-1.5 sm:space-y-2 mb-2 sm:mb-3">
                         <div className="flex items-center justify-between">
                           <span className="text-xs font-medium">
                             Face Count:
@@ -590,6 +591,7 @@ export const FaceDetectionPanel = forwardRef<
                                 ? "destructive"
                                 : "default"
                             }
+                            className="text-xs px-1.5 py-0.5"
                           >
                             {analysisData.multiple_faces.face_count || 0}
                           </Badge>
@@ -610,7 +612,7 @@ export const FaceDetectionPanel = forwardRef<
 
 
                     {analysisData.voice_analysis && (
-                      <div className="space-y-2 mb-3">
+                      <div className="space-y-1.5 sm:space-y-2 mb-2 sm:mb-3">
                         <div className="flex items-center justify-between">
                           <span className="text-xs font-medium">Voice:</span>
                           <Badge
@@ -619,6 +621,7 @@ export const FaceDetectionPanel = forwardRef<
                                 ? "default"
                                 : "secondary"
                             }
+                            className="text-xs px-1.5 py-0.5"
                           >
                             {analysisData.voice_analysis.speaking
                               ? "Speaking"
@@ -656,15 +659,15 @@ export const FaceDetectionPanel = forwardRef<
                   {/* Recommendations */}
                   {analysisData.recommendations &&
                     analysisData.recommendations.length > 0 && (
-                      <div className="mt-3">
-                        <h4 className="text-sm font-medium mb-2">
+                      <div className="mt-2 sm:mt-3">
+                        <h4 className="text-xs sm:text-sm font-medium mb-1.5 sm:mb-2">
                           Recommendations:
                         </h4>
-                        <ul className="text-xs text-muted-foreground space-y-1">
+                        <ul className="text-xs text-muted-foreground space-y-0.5 sm:space-y-1">
                           {analysisData.recommendations.map((rec, i) => (
-                            <li key={i} className="flex items-start gap-1">
-                              <span className="text-blue-500">•</span>
-                              {rec}
+                            <li key={i} className="flex items-start gap-1 break-words">
+                              <span className="text-blue-500 shrink-0">•</span>
+                              <span className="flex-1">{rec}</span>
                             </li>
                           ))}
                         </ul>
@@ -674,15 +677,15 @@ export const FaceDetectionPanel = forwardRef<
                   {/* Suspicious Behavior */}
                   {analysisData.suspicious_behavior &&
                     analysisData.suspicious_behavior.length > 0 && (
-                      <div className="mt-3">
-                        <h4 className="text-sm font-medium mb-2 text-red-600">
+                      <div className="mt-2 sm:mt-3">
+                        <h4 className="text-xs sm:text-sm font-medium mb-1.5 sm:mb-2 text-red-600">
                           ⚠️ Suspicious Behavior:
                         </h4>
-                        <ul className="text-xs text-red-600 space-y-1">
+                        <ul className="text-xs text-red-600 space-y-0.5 sm:space-y-1">
                           {analysisData.suspicious_behavior.map((b, i) => (
-                            <li key={i} className="flex items-start gap-1">
-                              <span className="text-red-500">⚠</span>
-                              {b}
+                            <li key={i} className="flex items-start gap-1 break-words">
+                              <span className="text-red-500 shrink-0">⚠</span>
+                              <span className="flex-1">{b}</span>
                             </li>
                           ))}
                         </ul>

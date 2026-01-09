@@ -1,107 +1,157 @@
-Easy (1-34)
-1) What is a backend server responsible for?
-2) What is an API endpoint?
-3) Name common HTTP methods.
-4) What does a 200 HTTP status mean?
-5) What does a 404 HTTP status mean?
-6) What is JSON and why is it used?
-7) What is a database table?
-8) Difference between a row and a column.
-9) What is a primary key?
-10) What is a unique constraint?
-11) What is an index?
-12) What is an ORM?
-13) What is a REST API?
-14) What is the purpose of request headers?
-15) What is the purpose of response codes?
-16) What is environment variable?
-17) What is a configuration file?
-18) What is version control (Git)?
-19) What is a branch in Git?
-20) What is a pull request?
-21) What is unit testing?
-22) What is integration testing?
-23) What is logging?
-24) What is rate limiting?
-25) What is caching?
-26) What is pagination?
-27) What is a migration?
-28) What is SQL injection?
-29) What is authentication?
-30) What is authorization?
-31) Difference between PUT and PATCH.
-32) What is idempotency?
-33) What is a 500 error?
-34) What is a health check endpoint?
+Technical Questions - First Round Interview
 
-Medium (35-67)
-35) Design a user registration endpoint: inputs and outputs.
-36) How would you validate input data on the server?
-37) How to structure a basic FastAPI project?
-38) How to write a simple SQL query to filter by date range?
-39) When and how to add an index to a table?
-40) How would you prevent SQL injection?
-41) Explain CORS and how to configure it.
-42) How do you securely store passwords?
-43) How would you implement JWT authentication?
-44) How to refresh JWT tokens safely?
-45) How to paginate a list endpoint?
-46) How to upload and store files via an API?
-47) How to implement role-based access control?
-48) How to handle and return validation errors?
-49) How to structure service and repository layers?
-50) How to write unit tests for a service function?
-51) How to mock a database in tests?
-52) How to add structured logging and correlation IDs?
-53) How to implement retries with exponential backoff?
-54) How to implement rate limiting per user/IP?
-55) How to document APIs using OpenAPI/Swagger?
-56) How to perform database migrations in development?
-57) How to seed a database with initial data?
-58) How to use environment variables safely (dev/prod)?
-59) How to design an idempotent POST endpoint?
-60) How to handle long-running tasks using background jobs?
-61) How to design error responses consistently?
-62) How to measure API latency and throughput?
-63) How to add health and readiness endpoints?
-64) How to structure configs for multiple environments?
-65) How to handle concurrent writes safely?
-66) How to avoid N+1 queries with an ORM?
-67) How to choose between SQL and NoSQL for a feature?
+Arrays & Strings
+1) What is the difference between an array and a linked list?
+2) How do you find the largest and smallest element in an array?
+3) How do you reverse an array in place without using extra space?
+4) How do you remove duplicates from a sorted array?
+5) How do you rotate an array by k positions?
+6) How do you find the missing number in an array from 1 to n?
+7) How do you find the element that appears only once when others appear twice?
+8) How do you find the intersection of two arrays?
+9) How do you merge two sorted arrays into one sorted array?
+10) How do you move all zeros to the end of an array while maintaining order?
+11) How do you find the maximum sum subarray?
+12) How do you find the second largest element in an array?
+13) How do you find a pair with a given sum in an array?
+14) How do you check if an array is sorted and rotated?
+15) How do you find leaders in an array?
+16) How do you implement a dynamic array conceptually?
+17) How do you reverse a string without using built-in functions?
+18) How do you check if two strings are anagrams?
+19) How do you find the first non-repeating character in a string?
+20) How do you remove duplicate characters from a string?
+21) How do you check if a string is a palindrome ignoring case and symbols?
+22) How do you find the longest common prefix among strings?
+23) How do you find the longest substring without repeating characters?
+24) How do you count character frequencies in a string?
+25) How do you compress a string using run-length encoding?
 
-Hard (68-100)
-68) Design a minimal microservice architecture for auth and users.
-69) How to ensure data consistency across services without 2PC?
-70) Explain Saga pattern and when to use it.
-71) How to design a multi-tenant schema for small scale?
-72) How to implement secure secrets management locally and in cloud.
-73) How to do blue/green deployment safely with DB changes.
-74) How to implement circuit breaker and bulkhead patterns.
-75) How to handle back-pressure in async APIs.
-76) Design a cache strategy for hot endpoints with invalidation.
-77) How to shard a database table and route queries.
-78) How to plan and execute a large data backfill.
-79) How to design rate limiting for global users.
-80) How to instrument tracing across services.
-81) Compare REST, gRPC, and GraphQL; when to choose each.
-82) How to protect PII and comply with GDPR basics.
-83) How to design a file storage strategy (S3) with presigned URLs.
-84) How to design a robust job queue worker system.
-85) How to perform capacity planning for peak traffic.
-86) How to create a feature flag system for backend.
-87) How to design a search feature using Elasticsearch.
-88) How to migrate from monolith to modular monolith.
-89) How to guarantee idempotency across retries and duplicates.
-90) How to tune DB connection pool for high load.
-91) How to design an audit logging system.
-92) How to handle schema evolution without downtime.
-93) How to build data export/import safely and securely.
-94) How to implement request signing and verification.
-95) How to design multi-region failover strategy.
-96) How to set SLOs/SLAs and alerts for APIs.
-97) How to secure webhooks and prevent replay attacks.
-98) How to design an event-driven architecture for user lifecycle.
-99) How to design a safe rollback strategy.
-100) How to create a developer onboarding documentation set.
+Linked Lists
+26) What is a linked list and how is it different from an array?
+27) How do you insert a node at the beginning of a linked list?
+28) How do you insert a node at the end of a linked list?
+29) How do you delete a node when only its pointer is given?
+30) How do you find the middle of a linked list in one pass?
+31) How do you detect a loop in a linked list?
+32) How do you remove a loop from a linked list?
+33) How do you reverse a singly linked list?
+34) How do you check if a linked list is a palindrome?
+35) How do you merge two sorted linked lists?
+36) How do you find the nth node from the end of a linked list?
+37) What is the difference between singly and doubly linked lists?
 
+Stacks, Queues & Heaps
+38) What is a stack and where is it used?
+39) How do you implement a stack using an array?
+40) How do you implement a stack using two queues?
+41) What is a queue and where is it used?
+42) How do you implement a queue using an array?
+43) How do you implement a queue using two stacks?
+44) What is a circular queue and why is it useful?
+45) How do you check balanced parentheses using a stack?
+46) What is a priority queue?
+47) What is a heap and its main properties?
+48) How do you find the k largest elements using a heap?
+49) How do you implement min-heap and max-heap conceptually?
 
+Trees & Graphs
+50) What is a binary tree and how is it different from a BST?
+51) What is a binary search tree and its main property?
+52) How do you insert and search in a BST?
+53) What are inorder, preorder, and postorder traversals?
+54) How do you find the height of a binary tree?
+55) How do you find minimum and maximum in a BST?
+56) How do you check if a binary tree is height-balanced?
+57) How do you check if two binary trees are identical?
+58) How do you find the lowest common ancestor of two nodes?
+59) How do you perform level-order traversal (BFS)?
+60) What is a graph in data structures?
+61) Difference between directed and undirected graphs?
+62) How do you represent a graph using adjacency list and matrix?
+63) What is DFS and where is it used?
+64) What is BFS and where is it used?
+65) How do you detect a cycle in an undirected graph?
+66) How do you detect a cycle in a directed graph?
+67) What is topological sorting and when is it used?
+68) How do you count connected components in a graph?
+69) How do you solve the "number of islands" problem?
+
+Searching, Sorting & Hashing
+70) How does linear search work and its time complexity?
+71) How does binary search work and its time complexity?
+72) What are the conditions required for binary search?
+73) How would you implement binary search?
+74) How does bubble sort work and why is it inefficient?
+75) How does selection sort work?
+76) How does insertion sort work and when is it efficient?
+77) How does merge sort work and its complexity?
+78) How does quicksort work and its average and worst-case complexity?
+79) Why is quicksort faster than merge sort in practice?
+80) What is counting sort and when is it useful?
+81) Why is time complexity important?
+82) What is a hash table and how does it store data?
+83) What are collisions and how are they handled?
+84) Difference between chaining and open addressing?
+85) What makes a good hash function?
+86) How do you use a hash map to count frequencies?
+
+Core Algorithmic Concepts
+87) What is time complexity and Big-O notation?
+88) What is space complexity and why does it matter?
+89) Difference between O(1), O(log n), O(n), O(n log n), and O(n²)?
+90) Difference between recursion and iteration?
+91) What is tail recursion?
+92) What is dynamic programming in simple terms?
+93) Difference between memoization and tabulation?
+94) What is a greedy algorithm with an example?
+95) When would you choose greedy over dynamic programming?
+96) What is backtracking and where is it used?
+
+Programming, OOP & Language Basics
+97) What are the basic data types in your programming language?
+98) Difference between == and .equals()?
+99) Difference between == and === in JavaScript?
+100) What is a pointer and how is it different from a reference?
+101) Difference between stack memory and heap memory?
+102) What is pass by value and pass by reference?
+103) What is an exception and how do you handle it?
+104) Difference between interface and abstract class?
+105) What is encapsulation and why is it important?
+106) What is inheritance and what problem does it solve?
+107) What is polymorphism with an example?
+108) Difference between method overloading and overriding?
+109) What is a constructor and when is it called?
+110) What is garbage collection?
+111) What is an immutable object?
+
+DBMS, OS & Networking (Fresher Level)
+112) What is a database and why is it used?
+113) Difference between SQL and NoSQL databases?
+114) What is a primary key and a foreign key?
+115) What is normalization in databases?
+116) What is an index and why is it useful?
+117) What is an operating system?
+118) Difference between a process and a thread?
+119) What is context switching?
+120) What is deadlock in simple terms?
+121) What is an IP address?
+122) Difference between TCP and UDP?
+123) What is DNS and what does it do?
+
+Projects & SDE Basics
+124) Walk me through one of your projects end to end.
+125) What was the biggest technical challenge in your project?
+126) Which part of your project are you most proud of?
+127) How did you test your project?
+128) How did you divide work in your project team?
+129) Why did you choose specific technologies for your project?
+130) How did you handle performance issues?
+131) How did you manage your project code using Git?
+132) Have you refactored your code? Why?
+133) What is your favorite programming language and why?
+134) How do you approach a new coding problem?
+135) How do you debug when your code is not working?
+136) What do you understand by clean code?
+137) How do you make your code readable for others?
+138) What Git commands do you use most frequently?

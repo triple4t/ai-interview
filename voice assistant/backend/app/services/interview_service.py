@@ -7,50 +7,72 @@ from app.models.qa import QAPair
 from app.models.interview import InterviewResult
 from app.schemas.interview import InterviewResultResponse, ConversationMessage
 from app.services.rag_service import rag_service
-from langchain_openai import AzureChatOpenAI
+from langchain_openai import ChatOpenAI
 from langchain_core.prompts import ChatPromptTemplate
+from pydantic import BaseModel, Field
 import json
+
+# Pydantic models for structured output
+class QAPairExtraction(BaseModel):
+    """A single question-answer pair extracted from the interview transcript."""
+    question: str = Field(description="The actual question asked by the interviewer. Must be ONLY the question text, without any hints, responses, or transition phrases like 'That's okay', 'No worries', 'Let's think about it', etc.")
+    answer: str = Field(description="The candidate's answer to this question. Use 'No answer provided' if the candidate didn't answer.")
+    question_number: int = Field(description="The sequential number of this question (1-5)")
+
+class QAPairsExtraction(BaseModel):
+    """Extracted question-answer pairs from an interview transcript."""
+    qa_pairs: List[QAPairExtraction] = Field(description="List of exactly 5 question-answer pairs extracted from the transcript")
 
 class InterviewService:
     def __init__(self):
-        # Initialize Azure OpenAI for evaluation
+        # Initialize OpenAI for evaluation
         self.model = None
-        if rag_service.azure_configured:
+        if rag_service.openai_configured:
             try:
-                self.model = AzureChatOpenAI(
-                    api_key=os.getenv("AZURE_OPENAI_API_KEY"),
-                    azure_endpoint=os.getenv("AZURE_OPENAI_ENDPOINT"),
-                    azure_deployment=os.getenv("AZURE_OPENAI_DEPLOYMENT_NAME"),
-                    api_version=os.getenv("AZURE_OPENAI_API_VERSION")
+                self.model = ChatOpenAI(
+                    model="gpt-4o",
+                    api_key=os.getenv("OPENAI_API_KEY"),
+                    temperature=0.3  # Lower temperature for more consistent, strict evaluation
                 )
             except Exception as e:
                 print(f"Error initializing interview service model: {e}")
         
         # Evaluation prompts
         self.evaluation_prompt = ChatPromptTemplate.from_messages([
-            ("system", """You are an expert technical interviewer and evaluator. Your task is to evaluate interview responses and provide detailed feedback.
+            ("system", """You are an expert technical interviewer. Evaluate each answer based on how correctly and completely it addresses the question.
 
-IMPORTANT: This interview consists of EXACTLY 5 questions. Evaluate all 5 Q&A pairs.
+IMPORTANT: This interview consists of EXACTLY 5 questions. Evaluate all 5 Q&A pairs in the order they are presented.
 
-EVALUATION CRITERIA:
-1. Technical Accuracy (30%): How correct and accurate are the technical concepts?
-2. Depth of Knowledge (25%): How well does the candidate demonstrate understanding?
-3. Communication Clarity (20%): How clearly and effectively is the response communicated?
-4. Problem-Solving Approach (15%): How logical and systematic is the approach?
-5. Practical Application (10%): How well does the candidate apply concepts to real scenarios?
+SCORING PRINCIPLE:
+Score each answer based on:
+- Is the answer CORRECT? (Technical accuracy)
+- Does it COMPLETELY address the question? (Completeness)
+- Is it well-explained? (Clarity)
 
-SCORING GUIDELINES:
-- 90-100: Exceptional - Comprehensive, accurate, well-communicated
-- 80-89: Excellent - Strong understanding with minor gaps
-- 70-79: Good - Solid understanding with some areas for improvement
-- 60-69: Satisfactory - Basic understanding with notable gaps
-- 50-59: Needs Improvement - Limited understanding
-- Below 50: Poor - Significant misunderstandings or lack of knowledge
+SCORE RANGES:
+- 90-100: Completely correct, comprehensive, well-explained
+- 80-89: Correct with minor gaps or could be more detailed
+- 70-79: Mostly correct but missing some important points
+- 60-69: Partially correct, some understanding shown
+- 50-59: Vague or partially incorrect
+- 40-49: Mostly incorrect or very vague
+- 30-39: Incorrect with minimal correct information
+- 20-29: Very incorrect or doesn't address the question
+- 10-19: Almost no correct information
+- 0-9: No answer, "I don't know", or completely wrong
 
-INTERVIEW DATA (5 Questions):
-Questions: {questions}
-Answers: {answers}
-Full Conversation: {conversation}
+CRITICAL: You MUST evaluate each Q&A pair in the exact order provided. Question 1's answer is Answer 1, Question 2's answer is Answer 2, etc.
+
+INTERVIEW DATA:
+{qa_pairs}
+
+Full Conversation Context:
+{conversation}
+
+For each question, evaluate:
+1. Does the answer correctly address what was asked?
+2. Is the technical content accurate?
+3. Is it complete and well-explained?
 
 Provide evaluation in the following JSON format:
 {{
@@ -58,40 +80,40 @@ Provide evaluation in the following JSON format:
     "overall_analysis": "<comprehensive analysis of the 5-question interview>",
     "detailed_feedback": [
         {{
-            "question": "<question 1>",
-            "answer": "<answer 1>",
+            "question": "<exact question 1 text>",
+            "answer": "<exact answer 1 text>",
             "score": <score_out_of_100>,
             "feedback": "<detailed feedback for question 1>",
             "strengths": ["<strength1>", "<strength2>"],
             "weaknesses": ["<weakness1>", "<weakness2>"]
         }},
         {{
-            "question": "<question 2>",
-            "answer": "<answer 2>",
+            "question": "<exact question 2 text>",
+            "answer": "<exact answer 2 text>",
             "score": <score_out_of_100>,
             "feedback": "<detailed feedback for question 2>",
             "strengths": ["<strength1>", "<strength2>"],
             "weaknesses": ["<weakness1>", "<weakness2>"]
         }},
         {{
-            "question": "<question 3>",
-            "answer": "<answer 3>",
+            "question": "<exact question 3 text>",
+            "answer": "<exact answer 3 text>",
             "score": <score_out_of_100>,
             "feedback": "<detailed feedback for question 3>",
             "strengths": ["<strength1>", "<strength2>"],
             "weaknesses": ["<weakness1>", "<weakness2>"]
         }},
         {{
-            "question": "<question 4>",
-            "answer": "<answer 4>",
+            "question": "<exact question 4 text>",
+            "answer": "<exact answer 4 text>",
             "score": <score_out_of_100>,
             "feedback": "<detailed feedback for question 4>",
             "strengths": ["<strength1>", "<strength2>"],
             "weaknesses": ["<weakness1>", "<weakness2>"]
         }},
         {{
-            "question": "<question 5>",
-            "answer": "<answer 5>",
+            "question": "<exact question 5 text>",
+            "answer": "<exact answer 5 text>",
             "score": <score_out_of_100>,
             "feedback": "<detailed feedback for question 5>",
             "strengths": ["<strength1>", "<strength2>"],
@@ -103,9 +125,112 @@ Provide evaluation in the following JSON format:
     "recommendations": ["<recommendation1>", "<recommendation2>"]
 }}
 
+IMPORTANT: 
+- Use the EXACT question and answer text from the Q&A pairs above
+- Score each answer independently based on its correctness
+- Be strict: "I don't know" or vague answers should score 0-9
+- Wrong answers should score 10-29
+- Only correct, complete answers should score 70+
+
 Return only valid JSON."""),
-            ("user", "Evaluate this 5-question technical interview session.")
+            ("user", "Evaluate this 5-question technical interview session. Score each answer based on correctness and completeness. Ensure you evaluate all 5 Q&A pairs in order.")
         ])
+        
+        # Q&A extraction prompt with structured output
+        self.qa_extraction_prompt = ChatPromptTemplate.from_messages([
+            ("system", """You are an expert at analyzing interview transcripts and extracting question-answer pairs.
+
+CRITICAL RULES FOR QUESTION EXTRACTION:
+1. Extract ONLY the actual question text - remove ALL transition phrases, hints, responses, and acknowledgments
+2. DO NOT include phrases like:
+   - "That's okay, no worries"
+   - "That's a good start!"
+   - "Let's think about it together"
+   - "Of course, no worries"
+   - "Let's move on"
+   - "Great! Let's move on to the next question"
+   - Any acknowledgments or hints before or after the question
+3. Extract ONLY the question itself, for example:
+   - If the transcript says: "That's okay, no worries. Can you talk about how you would choose a vector database?"
+   - Extract ONLY: "Can you talk about how you would choose a vector database?"
+4. If a message contains both a hint/response AND a question, extract ONLY the question part
+5. Questions are typically sentences ending with "?" or sentences starting with question words (what, how, why, when, where, who, can you, tell me, explain, describe)
+
+CRITICAL RULES FOR ANSWER EXTRACTION:
+1. Extract the candidate's actual response to each question
+2. If the candidate said "I don't know" or didn't answer, use "No answer provided"
+3. If the candidate's answer is in a different message after the question, extract that answer
+4. Do NOT include the interviewer's responses or hints in the answer
+
+INTERVIEW STRUCTURE:
+- The interview consists of EXACTLY 5 main questions
+- Each question should be numbered sequentially (1-5)
+- Extract questions in the order they appear in the transcript
+- Match each question with the candidate's corresponding answer
+
+TRANSCRIPT:
+{transcript}
+
+Extract exactly 5 question-answer pairs. Ensure questions contain ONLY the question text without any hints, responses, or transition phrases."""),
+            ("user", "Extract the 5 question-answer pairs from this interview transcript. Return only the actual questions (without hints or responses) and the candidate's answers.")
+        ])
+
+    async def extract_qa_pairs_from_transcript(
+        self,
+        conversation: List[ConversationMessage]
+    ) -> tuple[List[str], List[str]]:
+        """
+        Extract question-answer pairs from the conversation transcript using structured output.
+        Returns (questions, answers) lists.
+        """
+        if not self.model:
+            print("⚠️ Warning: Model not available for Q&A extraction, using fallback")
+            return [], []
+        
+        try:
+            # Format conversation transcript
+            transcript_text = "\n".join([
+                f"{msg.role.upper()}: {msg.content}" 
+                for msg in conversation
+            ])
+            
+            print("🔍 Extracting Q&A pairs from transcript using structured output...")
+            
+            # Use structured output to extract Q&A pairs
+            chain = self.qa_extraction_prompt | self.model.with_structured_output(QAPairsExtraction)
+            
+            result = chain.invoke({
+                "transcript": transcript_text
+            })
+            
+            # Extract questions and answers in order
+            extracted_pairs = sorted(result.qa_pairs, key=lambda x: x.question_number)
+            questions = [pair.question for pair in extracted_pairs]
+            answers = [pair.answer for pair in extracted_pairs]
+            
+            print(f"✅ Extracted {len(questions)} Q&A pairs from transcript:")
+            for i, (q, a) in enumerate(zip(questions, answers), 1):
+                print(f"  Q{i}: {q[:100]}{'...' if len(q) > 100 else ''}")
+                print(f"  A{i}: {a[:100]}{'...' if len(a) > 100 else ''}")
+            
+            # Ensure we have exactly 5 pairs
+            if len(questions) < 5:
+                print(f"⚠️ Warning: Only extracted {len(questions)} pairs, expected 5. Padding with empty pairs.")
+                while len(questions) < 5:
+                    questions.append("No question provided")
+                    answers.append("No answer provided")
+            elif len(questions) > 5:
+                print(f"⚠️ Warning: Extracted {len(questions)} pairs, expected 5. Using first 5.")
+                questions = questions[:5]
+                answers = answers[:5]
+            
+            return questions, answers
+            
+        except Exception as e:
+            print(f"❌ Error extracting Q&A pairs from transcript: {e}")
+            import traceback
+            traceback.print_exc()
+            return [], []
 
     async def evaluate_session(
         self,
@@ -117,9 +242,22 @@ Return only valid JSON."""),
         db: Session
     ) -> InterviewResultResponse:
         """
-        Evaluate a complete interview session with exactly 5 questions
+        Evaluate a complete interview session with exactly 5 questions.
+        If questions/answers are not provided or are incorrect, extract them from the transcript.
         """
-        # Ensure we have matching questions and answers
+        # Extract Q&A pairs from transcript using structured output if needed
+        # Always extract from transcript to ensure accuracy
+        print("📝 Extracting Q&A pairs from transcript using structured output...")
+        extracted_questions, extracted_answers = await self.extract_qa_pairs_from_transcript(conversation)
+        
+        # Use extracted Q&A pairs if we successfully extracted them
+        if extracted_questions and len(extracted_questions) == 5:
+            questions = extracted_questions
+            answers = extracted_answers
+            print("✅ Using Q&A pairs extracted from transcript")
+        else:
+            print("⚠️ Using provided Q&A pairs (extraction failed or incomplete)")
+        # Validate and ensure we have matching questions and answers
         if len(questions) != len(answers):
             print(f"⚠️ Warning: Mismatch between questions ({len(questions)}) and answers ({len(answers)})")
             # Pad with empty strings to match the longer list
@@ -129,11 +267,13 @@ Return only valid JSON."""),
             while len(answers) < max_length:
                 answers.append("No answer provided")
         
-        # Log the actual number of Q&A pairs being evaluated
-        print(f"📝 Evaluating {len(questions)} Q&A pairs")
-        """
-        Evaluate a complete interview session
-        """
+        # Log each Q&A pair for verification
+        print(f"📝 Evaluating {len(questions)} Q&A pairs:")
+        for i, (q, a) in enumerate(zip(questions, answers), 1):
+            print(f"  Q{i}: {q[:100]}{'...' if len(q) > 100 else ''}")
+            print(f"  A{i}: {a[:100]}{'...' if len(a) > 100 else ''}")
+            print()
+        
         try:
             # Format conversation for evaluation
             conversation_text = "\n".join([
@@ -141,9 +281,9 @@ Return only valid JSON."""),
                 for msg in conversation
             ])
             
-            # Prepare questions and answers
-            qa_text = "\n\n".join([
-                f"Q{i+1}: {q}\nA{i+1}: {a}"
+            # Prepare explicitly paired Q&A format for the LLM
+            qa_pairs_text = "\n\n".join([
+                f"=== QUESTION {i+1} ===\n{q}\n\n=== ANSWER {i+1} ===\n{a}"
                 for i, (q, a) in enumerate(zip(questions, answers))
             ])
             
@@ -151,8 +291,7 @@ Return only valid JSON."""),
             if self.model:
                 chain = self.evaluation_prompt | self.model
                 response = chain.invoke({
-                    "questions": questions,
-                    "answers": answers,
+                    "qa_pairs": qa_pairs_text,  # Explicitly paired format
                     "conversation": conversation_text
                 })
                 
@@ -169,22 +308,88 @@ Return only valid JSON."""),
                     
                     evaluation = json.loads(content)
                     
-                    # Create detailed feedback for each Q&A
-                    detailed_feedback = []
+                    # Validate that we have feedback for all Q&A pairs
+                    detailed_feedback = evaluation.get("detailed_feedback", [])
+                    if len(detailed_feedback) != len(questions):
+                        print(f"⚠️ Warning: LLM returned {len(detailed_feedback)} feedback items, expected {len(questions)}")
+                    
+                    # Helper function to clean question text (remove transition phrases)
+                    def clean_question(question_text: str) -> str:
+                        """Remove transition phrases and extract only the actual question"""
+                        import re
+                        if not question_text:
+                            return question_text
+                        
+                        cleaned = question_text
+                        # Remove common transition phrases
+                        transition_patterns = [
+                            r"^that'?s?\s+(absolutely\s+)?fine,?\s*no\s+problem\s+(at\s+all)?[.!]?\s*",
+                            r"^that'?s?\s+okay,?\s*no\s+worries?[.!]?\s*",
+                            r"^great!?\s*",
+                            r"^alright,?\s*",
+                            r"^perfect[.!]?\s*",
+                            r"^thanks?\s+(for\s+that)?[.!]?\s*",
+                            r"^okay,?\s*",
+                            r"^sure,?\s*no\s+problem[.!]?\s*",
+                            r"^let'?s?\s+move\s+on\s+(to\s+the\s+next\s+question)?[.!]?\s*",
+                            r"^moving\s+(forward|on)[,.]?\s*",
+                            r"^here'?s?\s+(another\s+one\s+for\s+you|the\s+next\s+question)[.!]?\s*",
+                            r"^now,?\s*",
+                            r"^so,?\s*",
+                            r"^well,?\s*",
+                            r"^i\s+see[.!]?\s*",
+                            r"^got\s+it[.!]?\s*",
+                            r"^makes\s+sense[.!]?\s*",
+                            r"^interesting[.!]?\s*",
+                            r"^good\s+point[.!]?\s*",
+                            r"^that'?s?\s+great[.!]?\s*",
+                            r"^i\s+see\s+what\s+you\s+mean[.!]?\s*",
+                            r"^okay,?\s+that\s+makes\s+sense[.!]?\s*",
+                            r"^interesting\s+approach[.!]?\s*",
+                        ]
+                        
+                        for pattern in transition_patterns:
+                            cleaned = re.sub(pattern, '', cleaned, flags=re.IGNORECASE)
+                        
+                        # Remove redundant phrases
+                        cleaned = re.sub(r"^(let\s+me\s+ask\s+you\s+about|i'?d?\s+like\s+to\s+know|can\s+you\s+tell\s+me)\s*", '', cleaned, flags=re.IGNORECASE)
+                        
+                        # Clean up multiple spaces
+                        cleaned = re.sub(r'\s+', ' ', cleaned).strip()
+                        
+                        # If cleaned is too short, return original
+                        if len(cleaned) < 10:
+                            return question_text
+                        
+                        return cleaned
+                    
+                    # Create detailed feedback for each Q&A, ensuring correct pairing
+                    validated_feedback = []
                     for i, (q, a) in enumerate(zip(questions, answers)):
-                        if i < len(evaluation.get("detailed_feedback", [])):
-                            feedback_item = evaluation["detailed_feedback"][i]
+                        # Clean the question to remove transition phrases
+                        cleaned_q = clean_question(q)
+                        
+                        if i < len(detailed_feedback):
+                            feedback_item = detailed_feedback[i]
+                            # Use cleaned question and exact answer
+                            feedback_item["question"] = cleaned_q
+                            feedback_item["answer"] = a
                         else:
                             # Fallback if detailed feedback is missing
                             feedback_item = {
                                 "question": q,
                                 "answer": a,
-                                "score": evaluation.get("overall_score", 0) // len(questions),
+                                "score": evaluation.get("overall_score", 0) // len(questions) if len(questions) > 0 else 0,
                                 "feedback": "Evaluation completed",
                                 "strengths": [],
                                 "weaknesses": []
                             }
-                        detailed_feedback.append(feedback_item)
+                        validated_feedback.append(feedback_item)
+                    
+                    # Log scores for verification
+                    print("📊 Evaluation Scores:")
+                    for i, fb in enumerate(validated_feedback, 1):
+                        print(f"  Q{i}: {fb.get('score', 0)}/100 - {fb.get('feedback', '')[:80]}...")
                     
                     # Calculate scores
                     total_score = evaluation.get("overall_score", 0)
@@ -200,7 +405,7 @@ Return only valid JSON."""),
                         percentage=percentage,
                         questions_evaluated=len(questions),
                         overall_analysis=evaluation.get("overall_analysis", "Evaluation completed"),
-                        detailed_feedback=detailed_feedback,
+                        detailed_feedback=validated_feedback,
                         strengths=evaluation.get("strengths", []),
                         areas_for_improvement=evaluation.get("areas_for_improvement", []),
                         recommendations=evaluation.get("recommendations", []),
@@ -215,15 +420,15 @@ Return only valid JSON."""),
                         print("⚠️ Warning: Failed to store evaluation result in database")
                     
                     # Store individual Q&A pairs
-                    qa_success = await self._store_qa_pairs(session_id, user_id, questions, answers, detailed_feedback, db)
+                    qa_success = await self._store_qa_pairs(session_id, user_id, questions, answers, validated_feedback, db)
                     if not qa_success:
                         print("⚠️ Warning: Failed to store Q&A pairs in database")
                     
                     return result
                     
                 except json.JSONDecodeError as e:
-                    print(f"JSON parsing error: {e}")
-                    print(f"Raw response: {response.content}")
+                    print(f"❌ JSON parsing error: {e}")
+                    print(f"Raw response: {response.content[:500]}...")
                     fallback_result = self._create_fallback_result(session_id, user_id, questions, answers)
                     await self._store_evaluation_result(fallback_result, db)
                     await self._store_qa_pairs(session_id, user_id, questions, answers, fallback_result.detailed_feedback, db)
@@ -237,7 +442,9 @@ Return only valid JSON."""),
                 return fallback_result
                 
         except Exception as e:
-            print(f"Error in interview evaluation: {e}")
+            print(f"❌ Error in interview evaluation: {e}")
+            import traceback
+            traceback.print_exc()
             fallback_result = self._create_fallback_result(session_id, user_id, questions, answers)
             await self._store_evaluation_result(fallback_result, db)
             await self._store_qa_pairs(session_id, user_id, questions, answers, fallback_result.detailed_feedback, db)
@@ -288,7 +495,7 @@ Return only valid JSON."""),
             detailed_feedback=detailed_feedback,
             strengths=["Completed the interview"],
             areas_for_improvement=["Enable AI evaluation for detailed feedback"],
-            recommendations=["Ensure Azure OpenAI is configured for detailed evaluation"],
+            recommendations=["Ensure OpenAI is configured for detailed evaluation"],
             transcript=[],
             created_at=datetime.now(),
             updated_at=datetime.now()
@@ -476,17 +683,24 @@ Return only valid JSON."""),
     async def get_session_result(
         self,
         session_id: str,
-        user_id: int,
+        user_id: Optional[int],
         db: Session
     ) -> Optional[InterviewResultResponse]:
         """
-        Get specific session result with proper datetime handling
+        Get specific session result with proper datetime handling.
+        If user_id is None, admin can view any interview.
         """
         try:
-            result = db.query(InterviewResult).filter(
-                InterviewResult.session_id == session_id,
-                InterviewResult.user_id == user_id
-            ).first()
+            query = db.query(InterviewResult).filter(
+                InterviewResult.session_id == session_id
+            )
+            
+            # If user_id is provided, filter by it (normal user access)
+            # If None, admin can view any interview
+            if user_id is not None:
+                query = query.filter(InterviewResult.user_id == user_id)
+            
+            result = query.first()
             
             if not result:
                 return None

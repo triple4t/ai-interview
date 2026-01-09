@@ -1,6 +1,6 @@
 import os
 from typing import List, Dict, Any
-from langchain_openai import AzureChatOpenAI, AzureOpenAIEmbeddings
+from langchain_openai import ChatOpenAI, OpenAIEmbeddings
 from langchain_chroma import Chroma
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_text_splitters import RecursiveCharacterTextSplitter
@@ -10,6 +10,68 @@ from dotenv import load_dotenv
 import json
 
 load_dotenv()
+
+def _map_jd_name_to_question_file(jd_name: str) -> str:
+    """
+    Map JD names to their corresponding question file names.
+    Handles variations like "Generative AI Developer" -> "genai_developer.txt"
+    """
+    if not jd_name:
+        return ""
+    
+    # Normalize the JD name
+    normalized = jd_name.lower().strip()
+    
+    # Remove common prefixes/suffixes
+    normalized = normalized.replace("job description:", "").strip()
+    
+    # Map common variations to actual question file names
+    # Check for specific patterns first
+    if "genai" in normalized or "generative ai" in normalized or "generativeai" in normalized:
+        if "senior" in normalized:
+            return "genai_developer_senior.txt"
+        elif "fresher" in normalized or "junior" in normalized or "entry" in normalized:
+            return "genai_developer_fresher.txt"
+        elif "engineer" in normalized:
+            if "fresher" in normalized or "junior" in normalized:
+                return "genai_engineer_fresher.txt"
+            return "genai_developer.txt"  # Default for engineer
+        else:
+            return "genai_developer.txt"
+    elif "full stack" in normalized or "fullstack" in normalized:
+        if "senior" in normalized:
+            return "full_stack_developer_senior.txt"
+        elif "fresher" in normalized or "junior" in normalized:
+            return "full_stack_developer_fresher.txt"
+        else:
+            return "full_stack_developer.txt"
+    elif "backend" in normalized:
+        if "senior" in normalized:
+            return "backend_developer_senior.txt"
+        elif "fresher" in normalized or "junior" in normalized:
+            return "backend_developer_fresher.txt"
+        else:
+            return "backend_developer.txt"
+    elif "frontend" in normalized:
+        if "senior" in normalized:
+            return "frontend_developer_senior.txt"
+        elif "fresher" in normalized or "junior" in normalized:
+            return "frontend_developer_fresher.txt"
+        else:
+            return "frontend_developer.txt"
+    
+    # Fallback: try to construct from normalized name
+    fallback = normalized.replace(' ', '_').replace('-', '_')
+    # Remove common words that might not be in filename
+    fallback = fallback.replace('_developer', '').replace('_engineer', '')
+    fallback = fallback.replace('_position', '').replace('_role', '')
+    
+    # If it still looks reasonable, use it
+    if fallback and len(fallback) > 3:
+        return f"{fallback}.txt"
+    
+    # Last resort: return empty string
+    return ""
 
 class RAGService:
     def __init__(self):
@@ -22,31 +84,19 @@ class RAGService:
         # Ensure directory exists
         os.makedirs(self.persistent_dir, exist_ok=True)
         
-        # Check if Azure OpenAI environment variables are set
-        api_key = os.getenv("AZURE_OPENAI_API_KEY")
-        endpoint = os.getenv("AZURE_OPENAI_ENDPOINT")
-        deployment = os.getenv("AZURE_OPENAI_DEPLOYMENT_NAME")
-        embedding_deployment = os.getenv("AZURE_OPENAI_EMBEDDING_DEPLOYMENT_NAME", "text-embedding-3-small")
-        api_version = os.getenv("AZURE_OPENAI_API_VERSION")
+        # Check if OpenAI environment variables are set
+        api_key = os.getenv("OPENAI_API_KEY")
         
         # Debug logging
         print(f"🔍 Environment variables check:")
-        print(f"  API_KEY: {'✅ Set' if api_key else '❌ Missing'}")
-        print(f"  ENDPOINT: {'✅ Set' if endpoint else '❌ Missing'}")
-        print(f"  DEPLOYMENT: {'✅ Set' if deployment else '❌ Missing'}")
-        print(f"  EMBEDDING_DEPLOYMENT: {'✅ Set' if embedding_deployment else '❌ Missing'}")
-        print(f"  API_VERSION: {'✅ Set' if api_version else '❌ Missing'}")
+        print(f"  OPENAI_API_KEY: {'✅ Set' if api_key else '❌ Missing'}")
         
-        self.azure_configured = all([api_key, endpoint, deployment, embedding_deployment, api_version])
+        self.openai_configured = bool(api_key)
         
-        if not self.azure_configured:
-            print("⚠️  Azure OpenAI not configured. RAG features will be disabled.")
-            print("Please set the following environment variables:")
-            print("- AZURE_OPENAI_API_KEY")
-            print("- AZURE_OPENAI_ENDPOINT") 
-            print("- AZURE_OPENAI_DEPLOYMENT_NAME")
-            print("- AZURE_OPENAI_EMBEDDING_DEPLOYMENT_NAME")
-            print("- AZURE_OPENAI_API_VERSION")
+        if not self.openai_configured:
+            print("⚠️  OpenAI not configured. RAG features will be disabled.")
+            print("Please set the following environment variable:")
+            print("- OPENAI_API_KEY")
             self.model = None
             self.embeddings = None
             self.jd_vector_store = None
@@ -57,19 +107,15 @@ class RAGService:
         
         # Initialize LLM and Embeddings
         try:
-            self.model = AzureChatOpenAI(
-                api_key=os.getenv("AZURE_OPENAI_API_KEY"),
-                azure_endpoint=os.getenv("AZURE_OPENAI_ENDPOINT"),
-                azure_deployment=os.getenv("AZURE_OPENAI_DEPLOYMENT_NAME"),
-                api_version=os.getenv("AZURE_OPENAI_API_VERSION")
+            self.model = ChatOpenAI(
+                model="gpt-4o",
+                api_key=api_key,
+                temperature=0.7
             )
             
-            self.embeddings = AzureOpenAIEmbeddings(
-                api_key=os.getenv("AZURE_OPENAI_API_KEY"),
-                azure_endpoint=os.getenv("AZURE_OPENAI_ENDPOINT"),
-                azure_deployment=embedding_deployment,
-                api_version=os.getenv("AZURE_OPENAI_API_VERSION"),
-                model=embedding_deployment
+            self.embeddings = OpenAIEmbeddings(
+                model="text-embedding-3-small",
+                api_key=api_key
             )
             
             # Initialize vector stores
@@ -132,7 +178,7 @@ class RAGService:
             
         except Exception as e:
             print(f"❌ Error initializing RAG system: {str(e)}")
-            self.azure_configured = False
+            self.openai_configured = False
             self.model = None
             self.embeddings = None
             self.jd_vector_store = None
@@ -142,8 +188,8 @@ class RAGService:
     
     def load_job_descriptions(self):
         """Load all job descriptions from the jd folder into the vector store"""
-        if not self.azure_configured:
-            print("⚠️  Cannot load job descriptions: Azure OpenAI not configured")
+        if not self.openai_configured:
+            print("⚠️  Cannot load job descriptions: OpenAI not configured")
             return
             
         jd_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), "jd")
@@ -191,10 +237,10 @@ class RAGService:
     
     def process_resume(self, file_path: str, user_id: str) -> str:
         """Process uploaded resume and store in vector store"""
-        if not self.azure_configured:
+        if not self.openai_configured:
             # Fallback: just store the file path for later processing
-            print("⚠️  Azure OpenAI not configured. Storing resume file for later processing.")
-            return "Resume uploaded successfully (RAG processing disabled - Azure OpenAI not configured)"
+            print("⚠️  OpenAI not configured. Storing resume file for later processing.")
+            return "Resume uploaded successfully (RAG processing disabled - OpenAI not configured)"
             
         try:
             # Load PDF
@@ -229,7 +275,7 @@ class RAGService:
     
     def get_resume_content(self, user_id: str) -> str:
         """Retrieve resume content for a user"""
-        if not self.azure_configured:
+        if not self.openai_configured:
             return ""
             
         try:
@@ -239,7 +285,7 @@ class RAGService:
             )
             
             # Search for user's resume
-            docs = retriever.get_relevant_documents("resume content")
+            docs = retriever.invoke("resume content")
             
             # Filter by user_id
             user_docs = [doc for doc in docs if doc.metadata.get("user_id") == user_id]
@@ -255,9 +301,9 @@ class RAGService:
     
     def match_resume_with_jds(self, user_id: str, threshold: float = 0.65) -> List[Dict[str, Any]]:
         """Match user's resume with job descriptions using cosine similarity and AI analysis"""
-        if not self.azure_configured:
+        if not self.openai_configured:
             return [{
-                "error": "Azure OpenAI not configured. Please set AZURE_OPENAI_EMBEDDING_DEPLOYMENT_NAME environment variable."
+                "error": "OpenAI not configured. Please set OPENAI_API_KEY environment variable."
             }]
             
         try:
@@ -339,9 +385,18 @@ class RAGService:
                             print(f"🎯 Threshold check: {combined_score:.3f} >= {threshold:.3f} = {combined_score >= threshold}")
                             
                             if combined_score >= threshold:
+                                # Map JD name to correct question file name
+                                question_file = _map_jd_name_to_question_file(jd_name)
+                                if not question_file:
+                                    # Fallback to old logic if mapping fails
+                                    question_file = f"{jd_name.lower().replace(' ', '_')}.txt"
+                                    print(f"⚠️  Using fallback question file name: {question_file}")
+                                else:
+                                    print(f"✅ Mapped '{jd_name}' to question file: {question_file}")
+                                
                                 matches.append({
                                     "jd_title": jd_name,
-                                    "jd_source": f"{jd_name.lower().replace(' ', '_')}.txt",
+                                    "jd_source": question_file,
                                     "match_percentage": combined_score,
                                     "cosine_similarity": similarity_score,
                                     "ai_score": ai_match_percentage,
@@ -393,8 +448,8 @@ class RAGService:
             return ""
 
     def score_transcript(self, transcript: str) -> int:
-        """Evaluate a transcript using Azure OpenAI and return a score (percentage out of 100)."""
-        if not self.azure_configured or not self.model:
+        """Evaluate a transcript using OpenAI and return a score (percentage out of 100)."""
+        if not self.openai_configured or not self.model:
             return 0
         prompt = f"""
         You are an expert technical interviewer. Evaluate the following interview transcript and give a strict score out of 100 based on the quality, relevance, and completeness of the answers. Only return a number (integer, 0-100).
