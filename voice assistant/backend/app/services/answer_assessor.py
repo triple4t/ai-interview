@@ -44,6 +44,7 @@ Analyze the answer and provide:
 4. Weaknesses (list)
 5. Topics covered (list)
 6. Whether follow-up is needed (boolean)
+7. answer_felt_interesting (boolean): true ONLY when the answer is excellent or good AND includes a concrete example, real project, or specific story (not generic). Used to decide whether to ask 1-2 optional behavioral questions later. Set false for vague or purely theoretical answers.
 
 Be strict but fair. Excellent answers (80-100) show deep understanding and experience.
 Good answers (60-79) show solid understanding.
@@ -57,7 +58,8 @@ Return JSON format:
     "strengths": ["strength1", "strength2"],
     "weaknesses": ["weakness1", "weakness2"],
     "topics_covered": ["topic1", "topic2"],
-    "needs_followup": <true|false>
+    "needs_followup": <true|false>,
+    "answer_felt_interesting": <true|false>
 }"""),
             ("user", f"""Question: {question}
 
@@ -68,39 +70,58 @@ Context: {context or 'None'}
 Assess this answer and return JSON.""")
         ])
         
+        content = ""
         try:
             response = self.model.invoke(prompt.format_messages())
-            content = response.content.strip()
+            content = (getattr(response, "content", None) or str(response)).strip()
             
-            # Try to parse JSON (handle markdown code blocks)
-            if content.startswith("```"):
-                # Extract JSON from code block
-                lines = content.split("\n")
-                json_lines = [l for l in lines if not l.strip().startswith("```")]
-                content = "\n".join(json_lines)
+            # Extract JSON: strip markdown code fences and take only the JSON object
+            if "```" in content:
+                start = content.find("```")
+                if start >= 0:
+                    rest = content[start:]
+                    # Skip opening fence line
+                    nl = rest.find("\n")
+                    if nl >= 0:
+                        rest = rest[nl + 1:]
+                    end = rest.find("```")
+                    if end >= 0:
+                        content = rest[:end].strip()
+            start_brace = content.find("{")
+            end_brace = content.rfind("}")
+            if start_brace >= 0 and end_brace > start_brace:
+                content = content[start_brace : end_brace + 1]
             
             result = json.loads(content)
+            if not isinstance(result, dict):
+                return self._simple_assess(answer)
             
-            # Validate and set defaults
-            if "score" not in result:
-                result["score"] = 50
-            if "quality" not in result:
-                result["quality"] = "fair"
-            if "strengths" not in result:
-                result["strengths"] = []
-            if "weaknesses" not in result:
-                result["weaknesses"] = []
-            if "topics_covered" not in result:
-                result["topics_covered"] = []
-            if "needs_followup" not in result:
-                result["needs_followup"] = result.get("score", 50) < 70
-            
-            return result
+            # Use .get() for all keys to avoid KeyError on malformed or truncated output
+            score = result.get("score", 50)
+            if not isinstance(score, (int, float)):
+                score = 50
+            quality = (result.get("quality") or "fair").lower()
+            if quality not in ("excellent", "good", "fair", "poor"):
+                quality = "fair"
+            return {
+                "score": float(score),
+                "quality": quality,
+                "strengths": result.get("strengths") if isinstance(result.get("strengths"), list) else [],
+                "weaknesses": result.get("weaknesses") if isinstance(result.get("weaknesses"), list) else [],
+                "topics_covered": result.get("topics_covered") if isinstance(result.get("topics_covered"), list) else [],
+                "needs_followup": bool(result.get("needs_followup", score < 70)),
+                "answer_felt_interesting": bool(
+                    result.get("answer_felt_interesting",
+                        quality in ("excellent", "good") and score >= 70
+                    )
+                ),
+            }
         except json.JSONDecodeError as e:
-            logger.error(f"Error parsing JSON from answer assessor: {e}, response: {response.content[:200]}")
+            snippet = content[:300] if content else "n/a"
+            logger.warning(f"Answer assessor JSON parse error: {e}, content snippet: {snippet}")
             return self._simple_assess(answer)
         except Exception as e:
-            logger.error(f"Error assessing answer: {e}")
+            logger.warning(f"Error assessing answer: {e}", exc_info=True)
             return self._simple_assess(answer)
     
     def _simple_assess(self, answer: str) -> Dict[str, Any]:
@@ -115,7 +136,8 @@ Assess this answer and return JSON.""")
                 "strengths": [],
                 "weaknesses": ["Answer too brief"],
                 "topics_covered": [],
-                "needs_followup": True
+                "needs_followup": True,
+                "answer_felt_interesting": False,
             }
         elif length < 30:
             return {
@@ -124,7 +146,8 @@ Assess this answer and return JSON.""")
                 "strengths": [],
                 "weaknesses": ["Could be more detailed"],
                 "topics_covered": [],
-                "needs_followup": True
+                "needs_followup": True,
+                "answer_felt_interesting": False,
             }
         else:
             return {
@@ -133,6 +156,7 @@ Assess this answer and return JSON.""")
                 "strengths": ["Detailed answer"],
                 "weaknesses": [],
                 "topics_covered": [],
-                "needs_followup": False
+                "needs_followup": False,
+                "answer_felt_interesting": True,
             }
 

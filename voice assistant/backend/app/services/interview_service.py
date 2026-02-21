@@ -17,11 +17,11 @@ class QAPairExtraction(BaseModel):
     """A single question-answer pair extracted from the interview transcript."""
     question: str = Field(description="The actual question asked by the interviewer. Must be ONLY the question text, without any hints, responses, or transition phrases like 'That's okay', 'No worries', 'Let's think about it', etc.")
     answer: str = Field(description="The candidate's answer to this question. Use 'No answer provided' if the candidate didn't answer.")
-    question_number: int = Field(description="The sequential number of this question (1-5)")
+    question_number: int = Field(description="The sequential number of this question (1, 2, 3, ...)")
 
 class QAPairsExtraction(BaseModel):
     """Extracted question-answer pairs from an interview transcript."""
-    qa_pairs: List[QAPairExtraction] = Field(description="List of exactly 5 question-answer pairs extracted from the transcript")
+    qa_pairs: List[QAPairExtraction] = Field(description="List of ALL question-answer pairs from the transcript, in order (number sequentially from 1)")
 
 class InterviewService:
     def __init__(self):
@@ -41,13 +41,15 @@ class InterviewService:
         self.evaluation_prompt = ChatPromptTemplate.from_messages([
             ("system", """You are an expert technical interviewer. Evaluate each answer based on how correctly and completely it addresses the question.
 
-IMPORTANT: This interview consists of EXACTLY 5 questions. Evaluate all 5 Q&A pairs in the order they are presented.
+IMPORTANT: This interview has N question-answer pairs. Evaluate EVERY Q&A pair in the order provided. The number of items in detailed_feedback MUST equal the number of Q&A pairs.
 
 SCORING PRINCIPLE:
 Score each answer based on:
 - Is the answer CORRECT? (Technical accuracy)
 - Does it COMPLETELY address the question? (Completeness)
 - Is it well-explained? (Clarity)
+- For resume/project questions: did they give concrete examples and technical detail?
+- For behavioral questions (if any): did they give a specific situation and outcome?
 
 SCORE RANGES:
 - 90-100: Completely correct, comprehensive, well-explained
@@ -61,61 +63,28 @@ SCORE RANGES:
 - 10-19: Almost no correct information
 - 0-9: No answer, "I don't know", or completely wrong
 
-CRITICAL: You MUST evaluate each Q&A pair in the exact order provided. Question 1's answer is Answer 1, Question 2's answer is Answer 2, etc.
-
 INTERVIEW DATA:
 {qa_pairs}
 
 Full Conversation Context:
 {conversation}
 
-For each question, evaluate:
+For EACH question, evaluate:
 1. Does the answer correctly address what was asked?
-2. Is the technical content accurate?
+2. Is the technical content accurate (or for behavioral, is the example concrete)?
 3. Is it complete and well-explained?
 
 Provide evaluation in the following JSON format:
 {{
     "overall_score": <total_score_out_of_100>,
-    "overall_analysis": "<comprehensive analysis of the 5-question interview>",
+    "overall_analysis": "<comprehensive analysis covering ALL questions: technical performance, resume/project answers, and any behavioral answers. Summarize strengths and gaps across the full interview.>",
     "detailed_feedback": [
+        (ONE object per Q&A pair, in the same order as the pairs. Each object:)
         {{
-            "question": "<exact question 1 text>",
-            "answer": "<exact answer 1 text>",
+            "question": "<exact question text>",
+            "answer": "<exact answer text>",
             "score": <score_out_of_100>,
-            "feedback": "<detailed feedback for question 1>",
-            "strengths": ["<strength1>", "<strength2>"],
-            "weaknesses": ["<weakness1>", "<weakness2>"]
-        }},
-        {{
-            "question": "<exact question 2 text>",
-            "answer": "<exact answer 2 text>",
-            "score": <score_out_of_100>,
-            "feedback": "<detailed feedback for question 2>",
-            "strengths": ["<strength1>", "<strength2>"],
-            "weaknesses": ["<weakness1>", "<weakness2>"]
-        }},
-        {{
-            "question": "<exact question 3 text>",
-            "answer": "<exact answer 3 text>",
-            "score": <score_out_of_100>,
-            "feedback": "<detailed feedback for question 3>",
-            "strengths": ["<strength1>", "<strength2>"],
-            "weaknesses": ["<weakness1>", "<weakness2>"]
-        }},
-        {{
-            "question": "<exact question 4 text>",
-            "answer": "<exact answer 4 text>",
-            "score": <score_out_of_100>,
-            "feedback": "<detailed feedback for question 4>",
-            "strengths": ["<strength1>", "<strength2>"],
-            "weaknesses": ["<weakness1>", "<weakness2>"]
-        }},
-        {{
-            "question": "<exact question 5 text>",
-            "answer": "<exact answer 5 text>",
-            "score": <score_out_of_100>,
-            "feedback": "<detailed feedback for question 5>",
+            "feedback": "<detailed feedback for this question>",
             "strengths": ["<strength1>", "<strength2>"],
             "weaknesses": ["<weakness1>", "<weakness2>"]
         }}
@@ -125,15 +94,14 @@ Provide evaluation in the following JSON format:
     "recommendations": ["<recommendation1>", "<recommendation2>"]
 }}
 
-IMPORTANT: 
-- Use the EXACT question and answer text from the Q&A pairs above
-- Score each answer independently based on its correctness
-- Be strict: "I don't know" or vague answers should score 0-9
-- Wrong answers should score 10-29
-- Only correct, complete answers should score 70+
+IMPORTANT:
+- detailed_feedback must have exactly as many elements as there are Q&A pairs.
+- Use the EXACT question and answer text from the Q&A pairs.
+- Score each answer independently. Be strict: "I don't know" or vague answers score 0-9.
+- overall_analysis must cover the entire interview (all questions).
 
 Return only valid JSON."""),
-            ("user", "Evaluate this 5-question technical interview session. Score each answer based on correctness and completeness. Ensure you evaluate all 5 Q&A pairs in order.")
+            ("user", "Evaluate this technical interview session. Score every question-answer pair. Provide detailed_feedback for each pair and a comprehensive overall_analysis. Return only valid JSON.")
         ])
         
         # Q&A extraction prompt with structured output
@@ -163,16 +131,17 @@ CRITICAL RULES FOR ANSWER EXTRACTION:
 4. Do NOT include the interviewer's responses or hints in the answer
 
 INTERVIEW STRUCTURE:
-- The interview consists of EXACTLY 5 main questions
-- Each question should be numbered sequentially (1-5)
-- Extract questions in the order they appear in the transcript
-- Match each question with the candidate's corresponding answer
+- The interview may have several to many questions (typically 8-12).
+- Number each question-answer pair sequentially (1, 2, 3, ...).
+- Extract ALL question-answer pairs in the order they appear.
+- Match each question with the candidate's corresponding answer.
+- Include intro, resume-based, technical, behavioral, and follow-up questions.
 
 TRANSCRIPT:
 {transcript}
 
-Extract exactly 5 question-answer pairs. Ensure questions contain ONLY the question text without any hints, responses, or transition phrases."""),
-            ("user", "Extract the 5 question-answer pairs from this interview transcript. Return only the actual questions (without hints or responses) and the candidate's answers.")
+Extract ALL question-answer pairs from the transcript. Ensure each question contains ONLY the question text (no hints, acknowledgments, or transition phrases)."""),
+            ("user", "Extract all question-answer pairs from this interview transcript. Return the actual questions and the candidate's answers in order. Number them sequentially.")
         ])
 
     async def extract_qa_pairs_from_transcript(
@@ -213,17 +182,11 @@ Extract exactly 5 question-answer pairs. Ensure questions contain ONLY the quest
                 print(f"  Q{i}: {q[:100]}{'...' if len(q) > 100 else ''}")
                 print(f"  A{i}: {a[:100]}{'...' if len(a) > 100 else ''}")
             
-            # Ensure we have exactly 5 pairs
-            if len(questions) < 5:
-                print(f"⚠️ Warning: Only extracted {len(questions)} pairs, expected 5. Padding with empty pairs.")
-                while len(questions) < 5:
-                    questions.append("No question provided")
-                    answers.append("No answer provided")
-            elif len(questions) > 5:
-                print(f"⚠️ Warning: Extracted {len(questions)} pairs, expected 5. Using first 5.")
-                questions = questions[:5]
-                answers = answers[:5]
-            
+            # Require at least one pair; no artificial cap
+            if len(questions) == 0:
+                print("⚠️ Warning: No Q&A pairs extracted.")
+            else:
+                print(f"✅ Will evaluate all {len(questions)} Q&A pairs.")
             return questions, answers
             
         except Exception as e:
@@ -242,7 +205,7 @@ Extract exactly 5 question-answer pairs. Ensure questions contain ONLY the quest
         db: Session
     ) -> InterviewResultResponse:
         """
-        Evaluate a complete interview session with exactly 5 questions.
+        Evaluate a complete interview session (variable number of questions).
         If questions/answers are not provided or are incorrect, extract them from the transcript.
         """
         # Extract Q&A pairs from transcript using structured output if needed
@@ -250,11 +213,11 @@ Extract exactly 5 question-answer pairs. Ensure questions contain ONLY the quest
         print("📝 Extracting Q&A pairs from transcript using structured output...")
         extracted_questions, extracted_answers = await self.extract_qa_pairs_from_transcript(conversation)
         
-        # Use extracted Q&A pairs if we successfully extracted them
-        if extracted_questions and len(extracted_questions) == 5:
+        # Use extracted Q&A pairs if we got any
+        if extracted_questions and extracted_answers and len(extracted_questions) >= 1:
             questions = extracted_questions
             answers = extracted_answers
-            print("✅ Using Q&A pairs extracted from transcript")
+            print(f"✅ Using {len(questions)} Q&A pairs extracted from transcript")
         else:
             print("⚠️ Using provided Q&A pairs (extraction failed or incomplete)")
         # Validate and ensure we have matching questions and answers

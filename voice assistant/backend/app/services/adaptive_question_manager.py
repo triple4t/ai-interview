@@ -7,12 +7,16 @@ from datetime import datetime
 
 logger = logging.getLogger(__name__)
 
+# Hard cap: real interviews are short. Only ask up to 10 questions total.
+MAX_TOTAL_QUESTIONS = 10
+
 
 class InterviewPhase(Enum):
     """Interview phases"""
     INTRODUCTION = "introduction"
-    RESUME_DEEP_DIVE = "resume_deep_dive"
-    TECHNICAL_QUESTIONS = "technical_questions"
+    RESUME_DEEP_DIVE = "resume_deep_dive"  # Technical questions based on resume (skills, projects)
+    TECHNICAL_QUESTIONS = "technical_questions"  # JD/role technical pool
+    BEHAVIORAL = "behavioral"  # Only 1-2 if answer was interesting
     FOLLOW_UP = "follow_up"
     CLOSING = "closing"
 
@@ -83,13 +87,16 @@ class AdaptiveQuestionManager:
         self.intro_asked = False
         self.resume_questions_asked = 0
         self.technical_questions_asked = 0
+        self.behavioral_questions_asked = 0
         self.followup_questions_asked = 0
-        
-        # Target distribution (approximate)
-        # Total ~10 questions: 1 intro + 2 resume + 7 technical + some followups
-        self.target_resume_questions = 2  # ~20% of 10 total questions
-        self.target_technical_questions = 7  # ~70% of 10 total questions
-        self.target_followups = 1  # ~10% of 10 total questions
+        self.interesting_answers_count = 0  # Track answers that felt "interesting" for optional behavioral
+
+        # Target distribution: strict 10-question interview. JD technical = core; minimal resume/behavioral/follow-up.
+        # 1 intro + 1 resume + 6 JD technical + 0-1 behavioral + 0-1 follow-up = max 10
+        self.target_resume_questions = 1
+        self.target_technical_questions = 6  # Core technical from job description file
+        self.max_behavioral_questions = 1  # Only if answer was clearly interesting
+        self.target_followups = 1  # At most one follow-up from system
         
         # Difficulty tracking - start with "easy" for freshers (0-2 years)
         if self.is_fresher:
@@ -157,126 +164,108 @@ class AdaptiveQuestionManager:
         return round(total_years, 1)
     
     def get_next_question(self) -> Optional[QuestionContext]:
-        """Get the next question based on current phase and state"""
-        
-        # Phase 1: Introduction (always first)
+        """Get the next question based on current phase and state.
+        Focus: resume-based technical + JD technical; only 0-1 behavioral if answers were interesting.
+        Hard cap: MAX_TOTAL_QUESTIONS (10) total.
+        """
+        # Hard cap: never more than MAX_TOTAL_QUESTIONS (intro + resume + technical + behavioral + follow-up)
+        if len(self.questions_asked) >= MAX_TOTAL_QUESTIONS:
+            logger.info(f"[Adaptive] Reached max {MAX_TOTAL_QUESTIONS} questions, ending interview")
+            return None
+
+        # Phase 1: Introduction (always first, brief)
         if not self.intro_asked:
             self.intro_asked = True
             return QuestionContext(
-                question="Could you please introduce yourself and tell me a bit about your background?",
+                question="In one or two sentences, introduce yourself and the tech stack you work with.",
                 question_type="introduction",
                 phase=InterviewPhase.INTRODUCTION,
                 difficulty="easy",
                 asked_at=datetime.now()
             )
-        
-        # Phase 2: Resume deep dive (20% of questions)
-        if (self.resume_questions_asked < self.target_resume_questions and 
+
+        # Phase 2: Resume deep dive — technical questions from resume (skills, projects, tech stack)
+        if (self.resume_questions_asked < self.target_resume_questions and
             self.current_phase in [InterviewPhase.INTRODUCTION, InterviewPhase.RESUME_DEEP_DIVE]):
             self.current_phase = InterviewPhase.RESUME_DEEP_DIVE
             question = self._generate_resume_question()
             if question:
                 self.resume_questions_asked += 1
                 return question
-        
-        # Phase 3: Technical questions (70% of questions)
+
+        # Phase 3: JD/role technical questions (majority of interview)
         if (self.technical_questions_asked < self.target_technical_questions and
-            (self.current_phase == InterviewPhase.RESUME_DEEP_DIVE or 
+            (self.current_phase == InterviewPhase.RESUME_DEEP_DIVE or
              self.current_phase == InterviewPhase.TECHNICAL_QUESTIONS)):
             self.current_phase = InterviewPhase.TECHNICAL_QUESTIONS
             question = self._get_technical_question()
             if question:
                 self.technical_questions_asked += 1
                 return question
-        
-        # Phase 4: Follow-ups (10% of questions, generated dynamically)
-        if self.technical_questions_asked >= 3:  # Start follow-ups after some technical questions
+
+        # Phase 4: Behavioral — only 1-2 questions, and only if we had interesting answers
+        if (self.interesting_answers_count > 0 and
+            self.behavioral_questions_asked < self.max_behavioral_questions and
+            (self.current_phase == InterviewPhase.TECHNICAL_QUESTIONS or
+             self.current_phase == InterviewPhase.BEHAVIORAL)):
+            self.current_phase = InterviewPhase.BEHAVIORAL
+            question = self._generate_behavioral_question()
+            if question:
+                self.behavioral_questions_asked += 1
+                return question
+
+        # Phase 5: At most one follow-up (technical depth or weakness probe)
+        if (self.followup_questions_asked < self.target_followups and self.technical_questions_asked >= 2):
             followup = self._generate_followup_question()
             if followup:
                 self.followup_questions_asked += 1
                 return followup
-        
-        # If we've asked enough questions, return None to signal completion
-        total_asked = (self.resume_questions_asked + 
-                      self.technical_questions_asked + 
-                      self.followup_questions_asked)
-        
-        if total_asked >= 10:  # Total interview questions
+
+        total_asked = (self.resume_questions_asked + self.technical_questions_asked +
+                      self.behavioral_questions_asked + self.followup_questions_asked)
+        if total_asked >= MAX_TOTAL_QUESTIONS - 1:  # -1 because intro is not in total_asked
             self.current_phase = InterviewPhase.CLOSING
             return None
-        
-        # Fallback: continue with technical questions
+
+        # Fallback: more technical from pool
         question = self._get_technical_question()
         if question:
             self.technical_questions_asked += 1
             return question
-        
         return None
     
     def _generate_resume_question(self) -> Optional[QuestionContext]:
-        """Generate a question based on resume data"""
+        """Generate ONE short technical question tied to resume (skills/project). Kept brief so we move quickly to JD technical questions."""
         if not self.resume_data:
-            # If no resume data, skip resume questions and move to technical
             return None
-        
-        # Extract key information from resume
-        experiences = self.resume_data.get("experiences", [])
+
         skills = self.resume_data.get("skills", [])
         projects = self.resume_data.get("projects", [])
-        education = self.resume_data.get("education", [])
-        
-        # Generate question based on what's available
         resume_question_templates = []
-        
-        if experiences:
-            latest_exp = experiences[0] if experiences else {}
-            company = latest_exp.get('company', 'your previous company')
-            title = latest_exp.get('title', 'a developer')
-            resume_question_templates.extend([
-                f"Tell me about your experience as {title} at {company}. What were your main responsibilities?",
-                f"I see you worked at {company}. Can you walk me through a challenging project you worked on there?",
-                f"What technologies did you use in your role at {company}?",
-            ])
-        
-        if projects:
-            latest_project = projects[0] if projects else {}
-            project_name = latest_project.get('name', 'a project')
-            resume_question_templates.extend([
-                f"I noticed you worked on {project_name}. Can you tell me more about it?",
-                f"What was your role in {project_name}? What challenges did you face?",
-            ])
-        
+
         if skills:
-            top_skills = skills[:3] if len(skills) >= 3 else skills
+            top_skills = skills[:3]
             skill_str = ", ".join(top_skills)
             resume_question_templates.append(
-                f"You mentioned {skill_str} in your resume. Can you tell me about your experience with these technologies?"
+                f"You listed {skill_str}. In one project using these, what did you build and what was one technical decision you made?"
             )
-        
-        if education:
-            latest_edu = education[0] if education else {}
-            school = latest_edu.get('school', 'your university')
-            degree = latest_edu.get('degree', 'your degree')
+        if projects:
+            p = projects[0]
+            name = p.get("name") or p.get("title") or "a project"
             resume_question_templates.append(
-                f"I see you studied {degree} at {school}. How did your education prepare you for this role?"
+                f"For your project {name}, what was your role and one technical challenge you solved?"
             )
-        
         if not resume_question_templates:
-            # Fallback generic resume question
             resume_question_templates.append(
-                "Can you walk me through your resume and highlight your most relevant experience for this role?"
+                "What's one technically substantial thing you built recently—what and with what stack?"
             )
-        
-        # Select a question we haven't asked yet
-        available = [q for q in resume_question_templates 
-                    if q not in self.used_resume_questions]
-        
+
+        available = [q for q in resume_question_templates if q not in self.used_resume_questions]
         if not available:
             return None
-        
+
         selected = random.choice(available)
         self.used_resume_questions.add(selected)
-        
         return QuestionContext(
             question=selected,
             question_type="resume",
@@ -285,6 +274,31 @@ class AdaptiveQuestionManager:
             source="resume_data",
             asked_at=datetime.now()
         )
+
+    def _generate_behavioral_question(self) -> Optional[QuestionContext]:
+        """Generate at most 1-2 behavioral questions; only used when answer_felt_interesting."""
+        behavioral_pool = [
+            "That was a strong example. Tell me about a time you had to convince your team or stakeholders to adopt a technical approach—what was the situation and outcome?",
+            "You mentioned a concrete experience there. Can you describe a situation where a project or deadline was at risk and how you handled it?",
+            "Following on that—describe a time you had to learn a new technology or concept quickly to ship something. How did you approach it?",
+        ]
+        available = [q for q in behavioral_pool if q not in self.used_resume_questions]
+        if not available:
+            available = behavioral_pool
+        selected = random.choice(available)
+        self.used_resume_questions.add(selected)
+        return QuestionContext(
+            question=selected,
+            question_type="behavioral",
+            phase=InterviewPhase.BEHAVIORAL,
+            difficulty="medium",
+            source="behavioral",
+            asked_at=datetime.now()
+        )
+
+    def record_interesting_answer(self):
+        """Call when assess_answer indicates the candidate's answer was particularly interesting (e.g. rich example)."""
+        self.interesting_answers_count = min(self.interesting_answers_count + 1, 3)
     
     def _get_technical_question(self) -> Optional[QuestionContext]:
         """Get a technical question from the pool, avoiding previous topics"""
@@ -355,25 +369,31 @@ class AdaptiveQuestionManager:
         return None
     
     def _create_followup_for_weakness(self, assessment: AnswerAssessment) -> Optional[QuestionContext]:
-        """Create a follow-up question to probe a weak area"""
+        """Create a follow-up question to probe a weak area. Use the question topic, not raw weakness text, so the follow-up is coherent."""
         weaknesses = assessment.weaknesses
         if not weaknesses:
             return None
         
-        # Generate follow-up based on weakness
-        weakness = weaknesses[0].lower()
-        
-        # Extract key topic from original question
-        question_lower = assessment.question.lower()
-        
-        followup_templates = [
-            f"Let me ask a follow-up: can you elaborate on {weakness}?",
-            f"I'd like to understand better: regarding {weakness}, can you provide more details?",
-            f"To clarify: what specific challenges have you faced with {weakness}?",
-            f"Can you give me an example of how you've worked with {weakness}?",
-        ]
-        
-        selected = random.choice(followup_templates)
+        weakness = (weaknesses[0] or "").strip().lower()
+        # Meta/phrase weaknesses that would make incoherent follow-ups (e.g. "could be more detailed", "answer too brief")
+        generic_weak = any(
+            phrase in weakness
+            for phrase in ("could be more detailed", "more detail", "too brief", "too short", "elaborate", "expand")
+        )
+        if generic_weak or len(weakness.split()) > 6:
+            # Use topic-agnostic follow-up so we don't say "elaborate on could be more detailed"
+            followup_questions = [
+                "Could you elaborate on that with a bit more detail or a concrete example?",
+                "Can you give a specific example that illustrates what you mean?",
+                "What would you do differently or add if you had more time to explain?",
+            ]
+        else:
+            # Weakness is a concrete topic (e.g. "error handling"); use it in the follow-up
+            followup_questions = [
+                f"Can you elaborate on {weakness}?",
+                f"Could you give an example related to {weakness}?",
+            ]
+        selected = random.choice(followup_questions)
         
         return QuestionContext(
             question=selected,
@@ -485,6 +505,7 @@ class AdaptiveQuestionManager:
             "questions_asked": len(self.questions_asked),
             "resume_questions": self.resume_questions_asked,
             "technical_questions": self.technical_questions_asked,
+            "behavioral_questions": self.behavioral_questions_asked,
             "followup_questions": self.followup_questions_asked,
             "current_difficulty": self.current_difficulty,
             "weak_areas": self.weak_areas,

@@ -4,6 +4,7 @@ import random
 from typing import List, Dict, Any, Optional
 
 from dotenv import load_dotenv
+from sqlalchemy.exc import OperationalError, ProgrammingError
 from livekit.agents import (
     Agent,
     AgentSession,
@@ -234,7 +235,7 @@ def load_resume_data_for_session(session_id: str) -> Optional[Dict[str, Any]]:
         
         db = SessionLocal()
         try:
-            # Try to find recording by session_id to get candidate_id
+            # Try to find recording by session_id to get candidate_id (may fail if DB missing video_url column)
             recording = db.query(Recording).filter(
                 Recording.session_id == session_id
             ).first()
@@ -250,6 +251,11 @@ def load_resume_data_for_session(session_id: str) -> Optional[Dict[str, Any]]:
                     return resume.extracted_data
         finally:
             db.close()
+    except (ProgrammingError, OperationalError) as e:
+        if "video_url" in str(e) or "does not exist" in str(e).lower():
+            logger.debug("[Interview] Recording table missing video_url column, skipping resume load from recording")
+        else:
+            logger.warning(f"[Interview] DB error loading resume data: {e}")
     except Exception as e:
         logger.warning(f"[Interview] Could not load resume data: {e}")
     
@@ -330,9 +336,9 @@ class Assistant(Agent):
         # Build instructions with adaptive system
         instructions = self._build_instructions()
         
-        # Create function tools for adaptive questioning
+        # Create function tools for adaptive questioning (async so LiveKit can await them)
         @function_tool()
-        def get_next_question() -> str:
+        async def get_next_question() -> str:
             """Get the next question from the adaptive question system. Call this when you need to ask a new question."""
             next_q = self.question_manager.get_next_question()
             if next_q:
@@ -345,10 +351,14 @@ class Assistant(Agent):
                 return "INTERVIEW_COMPLETE"
         
         @function_tool()
-        def assess_answer(answer: str) -> str:
+        async def assess_answer(answer: str) -> str:
             """Assess the candidate's answer quality. Call this after the candidate responds to understand their performance."""
             if not self.current_question_context:
                 return "No current question to assess"
+            # Truncate long answers to avoid JSON overflow when LLM sends huge payloads
+            MAX_ANSWER_LEN = 2000
+            if len(answer) > MAX_ANSWER_LEN:
+                answer = answer[:MAX_ANSWER_LEN].rstrip() + "..."
             
             # Assess using LLM
             assessment_result = self.answer_assessor.assess_answer(
@@ -357,37 +367,46 @@ class Assistant(Agent):
                 context={"phase": self.question_manager.current_phase.value}
             )
             
-            # Convert to AnswerAssessment
+            # Convert to AnswerAssessment (use .get() to avoid KeyError on malformed LLM output)
             from app.services.adaptive_question_manager import AnswerAssessment
+            quality_str = (assessment_result.get("quality") or "fair").lower()
+            try:
+                quality = AnswerQuality(quality_str)
+            except ValueError:
+                quality = AnswerQuality.FAIR
+            score = assessment_result.get("score", 50)
+            if not isinstance(score, (int, float)):
+                score = 50
             answer_assessment = AnswerAssessment(
                 question=self.current_question_context.question,
                 answer=answer,
-                quality=AnswerQuality(assessment_result["quality"]),
-                score=assessment_result["score"],
-                strengths=assessment_result.get("strengths", []),
-                weaknesses=assessment_result.get("weaknesses", []),
-                topics_covered=assessment_result.get("topics_covered", []),
+                quality=quality,
+                score=float(score),
+                strengths=assessment_result.get("strengths") or [],
+                weaknesses=assessment_result.get("weaknesses") or [],
+                topics_covered=assessment_result.get("topics_covered") or [],
                 needs_followup=assessment_result.get("needs_followup", False)
             )
             
             self.question_manager.answers_assessed.append(answer_assessment)
-            self.question_manager._update_difficulty(assessment_result["score"])
+            self.question_manager._update_difficulty(score)
+            if assessment_result.get("answer_felt_interesting"):
+                self.question_manager.record_interesting_answer()
+                logger.info("[Adaptive] Answer felt interesting — may ask 1-2 behavioral questions later")
             
-            logger.info(f"[Adaptive] Answer assessed: {assessment_result['quality']} (score: {assessment_result['score']})")
+            logger.info(f"[Adaptive] Answer assessed: {quality_str} (score: {score})")
             
             # Return summary for the LLM
-            quality = assessment_result["quality"]
-            score = assessment_result["score"]
             needs_followup = assessment_result.get("needs_followup", False)
             
-            if quality == "excellent":
-                return f"Excellent answer (score: {score}). The candidate demonstrated strong understanding. {'Consider asking a follow-up to go deeper.' if needs_followup else 'You can move to the next question.'}"
-            elif quality == "good":
-                return f"Good answer (score: {score}). The candidate showed solid understanding. {'Consider asking a follow-up.' if needs_followup else 'You can move to the next question.'}"
-            elif quality == "fair":
-                return f"Fair answer (score: {score}). The candidate showed basic knowledge but could elaborate more. Consider asking a follow-up to probe deeper."
+            if quality == AnswerQuality.EXCELLENT:
+                return f"Excellent answer (score: {score}). The candidate demonstrated strong understanding. Call get_next_question() for the next question."
+            elif quality == AnswerQuality.GOOD:
+                return f"Good answer (score: {score}). The candidate showed solid understanding. Call get_next_question() for the next question."
+            elif quality == AnswerQuality.FAIR:
+                return f"Fair answer (score: {score}). The candidate showed basic knowledge. Be brief, then call get_next_question() for the next question. Do not ask your own follow-up."
             else:
-                return f"Poor answer (score: {score}). The candidate struggled with this question. Be supportive and move to the next question."
+                return f"Poor answer (score: {score}). Be supportive briefly, then call get_next_question() for the next question."
         
         # Store tools as instance methods for access
         self._get_next_question = get_next_question
@@ -418,47 +437,36 @@ IMPORTANT: You MUST ALWAYS respond in ENGLISH ONLY, regardless of the language t
 ========================
 ADAPTIVE INTERVIEW STRUCTURE
 ========================
-The interview follows an adaptive structure:
+This is a TECHNICAL interview tied to the JOB DESCRIPTION. Maximum 10 questions total. Every question MUST come from get_next_question()—do NOT invent or rephrase into generic/HR questions.
 
-1. INTRODUCTION PHASE (First question)
-   - Always start with: "Could you please introduce yourself and tell me a bit about your background?"
-   - Use the get_next_question() function to get this question
-   - Listen actively and acknowledge their response
+1. INTRODUCTION (First question only)
+   - Use get_next_question() for the first question (brief intro + technical background).
+   - Listen and acknowledge briefly, then move on.
 
-2. RESUME DEEP DIVE PHASE (~20% of questions)
-   - Ask questions about their resume, experiences, projects
-   - Probe their background and past work
-   - Make it conversational and natural
-   - Use get_next_question() to get resume-based questions
+2. RESUME DEEP DIVE (One technical question from their resume)
+   - Use get_next_question() for this; ask exactly as returned.
 
-3. TECHNICAL QUESTIONS PHASE (~70% of questions)
-   - Ask technical questions from the provided pool
-   - Questions are selected adaptively based on performance
-   - Use get_next_question() to get technical questions
+3. TECHNICAL QUESTIONS (Core of the interview — from job description)
+   - JD/role technical questions from get_next_question(). Ask the EXACT question returned.
+   - Do NOT add your own follow-ups like "Could you elaborate?" or "Can you give an example?" as separate questions. If the candidate is brief, acknowledge and get the next question.
 
-4. FOLLOW-UP QUESTIONS (~10% of questions)
-   - Generated dynamically based on their answers
-   - Probe weak areas or go deeper into strong areas
-   - Use get_next_question() to get follow-up questions
+4. BEHAVIORAL (At most 1 question, only if the system returns one via get_next_question())
+   - Use get_next_question(); if it returns a behavioral question, ask it. Otherwise continue with technical or end.
+
+5. FOLLOW-UP (Only if get_next_question() returns a follow-up)
+   - Do NOT invent follow-ups. Only ask what get_next_question() returns.
 
 ========================
 HOW TO USE THE ADAPTIVE SYSTEM
 ========================
-1. To get a question: Call get_next_question() function
-   - This returns the next question you should ask
-   - If it returns "INTERVIEW_COMPLETE", end the interview
-
-2. After the candidate answers: Call assess_answer(answer) function
-   - Pass the candidate's answer as a string
-   - This will assess the answer and guide you on next steps
-   - The function returns guidance like "Excellent answer" or "Consider asking a follow-up"
-
+- MAX 10 QUESTIONS TOTAL. Every question MUST come from get_next_question(). Do NOT ask your own follow-ups (e.g. "Could you elaborate?", "Can you give an example?") as separate questions—those inflate the count and are not from the JD. If the candidate is brief, say a short acknowledgment and call get_next_question() for the next question.
+- Ask the EXACT question returned by get_next_question(). Do NOT rephrase into generic HR questions. Questions are technical and tied to the job description—ask them as given.
+1. To get a question: Call get_next_question()
+   - Returns the next question to ask (ask verbatim). If it returns "INTERVIEW_COMPLETE", end the interview.
+2. After the candidate answers: Call assess_answer(answer)
+   - Then call get_next_question() to get the next question. Do NOT invent a follow-up; only ask what get_next_question() returns.
 3. Flow:
-   - Call get_next_question() → Ask the question naturally
-   - Wait for candidate response
-   - Call assess_answer(candidate_response) → Get guidance
-   - Based on guidance, either ask follow-up or get next question
-   - Repeat until interview is complete
+   - get_next_question() → ask that question only → candidate responds → assess_answer(response) → get_next_question() → repeat. Stop when you get "INTERVIEW_COMPLETE".
 
 ========================
 CONVERSATION FLOW
@@ -467,26 +475,22 @@ CONVERSATION FLOW
 2. Greet warmly: "Hi! Thanks for joining us today. I'm [your name], and I'll be conducting your interview today. I'm excited to learn more about your background and experience."
 3. Call get_next_question() to get the first question (introduction)
 4. After each candidate response:
-   - Call assess_answer(candidate_response) to assess their answer
-   - Give friendly acknowledgments: "That's great!", "I see", "Interesting", "Good point"
-   - Based on the assessment:
-     * If excellent/good: You may ask a follow-up OR get the next question
-     * If fair/poor: Be supportive ("That's okay, no worries") and get the next question
-   - Use get_next_question() to get the next question when ready
-5. Use natural transitions between questions: "Great! Let's move on...", "Alright, here's another one..."
-6. When get_next_question() returns "INTERVIEW_COMPLETE", conclude the interview
+   - Call assess_answer(candidate_response), then call get_next_question() for the next question.
+   - Give brief acknowledgments only ("That's great!", "I see", "Thanks"). Do NOT ask an extra follow-up question unless get_next_question() returns one.
+   - If the answer was weak, be supportive ("That's okay") and get the next question. Do not ask "Could you elaborate?" as a separate question—only use get_next_question().
+5. Use short transitions: "Great! Next question...", "Alright, here's another one..."
+6. When get_next_question() returns "INTERVIEW_COMPLETE", conclude the interview (you will have asked at most 10 questions).
 
 ========================
 CRITICAL RULES
 ========================
 - NEVER provide answers or hints
-- NEVER explain concepts in detail
-- NEVER give away solutions
+- NEVER explain concepts in detail or give away solutions
 - ALWAYS ask questions - never answer them
-- Be warm, friendly, and encouraging
-- Adjust your tone based on their performance (more supportive if struggling)
-- ALWAYS use get_next_question() to get questions - don't make up questions
-- ALWAYS call assess_answer() after each response to understand performance
+- Ask ONLY resume-based technical and JD/role technical questions from get_next_question(). Do NOT ask generic HR questions (e.g. "Where do you see yourself in 5 years?", "What's your greatest weakness?" unless it is the specific behavioral question returned by get_next_question()).
+- Be warm and encouraging. Adjust tone if they struggle.
+- ALWAYS use get_next_question() for every question—never invent questions or add "elaborate?" / "give an example?" as extra questions. Max 10 questions total.
+- ALWAYS call assess_answer() after each response, then get_next_question() for the next one.
 
 ========================
 INTERVIEW ENDING
@@ -550,6 +554,11 @@ async def entrypoint(ctx: JobContext):
                 logger.info(f"[Interview] No recording found for session {session_id}, will start fresh")
         finally:
             db.close()
+    except (ProgrammingError, OperationalError) as e:
+        if "video_url" in str(e) or "does not exist" in str(e).lower():
+            logger.debug("[Interview] Recording table missing video_url column, skipping previous topics from recording")
+        else:
+            logger.warning(f"[Interview] DB error loading previous topics: {e}")
     except Exception as e:
         logger.warning(f"[Interview] Could not load previous topics: {e}", exc_info=True)
 
@@ -648,4 +657,8 @@ async def entrypoint(ctx: JobContext):
 
 
 if __name__ == "__main__":
-    cli.run_app(WorkerOptions(entrypoint_fnc=entrypoint, prewarm_fnc=prewarm))
+    cli.run_app(WorkerOptions(
+        entrypoint_fnc=entrypoint,
+        prewarm_fnc=prewarm,
+        initialize_process_timeout=60.0,
+    ))

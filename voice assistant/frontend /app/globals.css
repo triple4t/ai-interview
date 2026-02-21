@@ -210,6 +210,17 @@
     @apply bg-background text-foreground;
   }
 
+  /* Pointer cursor on interactive elements (no default arrow on hover) */
+  a,
+  button,
+  [role="button"],
+  input[type="submit"],
+  input[type="button"],
+  select,
+  label[for] {
+    cursor: pointer;
+  }
+
   /* Ensure LiveKit components have good contrast in dark mode */
   .dark [data-lk-theme] {
     --lk-color-background: #0a0a0a;
@@ -236,6 +247,12 @@
 }
 
 @layer utils {
+  .text-gradient {
+    @apply bg-gradient-to-r from-primary to-primary/80 bg-clip-text text-transparent;
+  }
+  .shadow-elevated {
+    box-shadow: 0 10px 40px -10px rgb(0 0 0 / 0.15), 0 4px 12px -4px rgb(0 0 0 / 0.08);
+  }
   .animate-text-shimmer {
     animation-delay: 0.5s;
     animation-duration: 3s;

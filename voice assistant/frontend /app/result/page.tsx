@@ -237,6 +237,13 @@ export default function ResultPage() {
     result.percentage ??
     calculatePercentage(result.total_score, result.max_score);
 
+  const strengths = result.strengths ?? [];
+  const areasForImprovement = result.areas_for_improvement ?? [];
+  const detailedFeedback = result.detailed_feedback ?? [];
+  const recommendations = result.recommendations ?? [];
+  const hasFaceAnalysis = result.face_analysis != null;
+  const hasVoiceAnalysis = result.voice_analysis != null;
+
   return (
     <div className="min-h-screen bg-background p-8">
       <div className="max-w-4xl mx-auto space-y-8">
@@ -263,10 +270,42 @@ export default function ResultPage() {
           </p>
         </div>
 
-        {/* Overall Analysis */}
-        <div className="bg-card rounded-lg shadow-lg p-8">
-          <h2 className="text-2xl font-bold mb-4">Overall Analysis</h2>
-          <p className="text-lg leading-relaxed">{result.overall_analysis}</p>
+        {/* Analysis summary: one place for score + overall + face/voice highlights */}
+        <div className="bg-card rounded-lg shadow-lg p-6 border-l-4 border-primary">
+          <h2 className="text-xl font-bold mb-3">Analysis Summary</h2>
+          <p className="text-muted-foreground mb-4 leading-relaxed">
+            {result.overall_analysis || "No overall analysis available."}
+          </p>
+          <div className="flex flex-wrap gap-4 text-sm">
+            <span className="font-medium">Score: {percentage.toFixed(1)}% ({getScoreLabel(percentage)})</span>
+            <span className="text-muted-foreground">•</span>
+            <span className="font-medium">{result.questions_evaluated} Q&A analyzed</span>
+            {hasFaceAnalysis && (
+              <>
+                <span className="text-muted-foreground">•</span>
+                <span>
+                  Face: {result.face_analysis?.engagement_level ?? "—"} engagement
+                  {typeof result.face_analysis?.attention_score === "number" &&
+                    `, ${Math.round((result.face_analysis.attention_score ?? 0) * 100)}% attention`}
+                </span>
+              </>
+            )}
+            {hasVoiceAnalysis && (
+              <>
+                <span className="text-muted-foreground">•</span>
+                <span>
+                  Voice: {Math.round((result.voice_analysis?.confidence ?? 0) * 100)}% confidence
+                  {typeof result.voice_analysis?.nervousness === "number" &&
+                    `, ${Math.round((result.voice_analysis.nervousness ?? 0) * 100)}% nervousness`}
+                </span>
+              </>
+            )}
+          </div>
+          <p className="text-xs text-muted-foreground mt-3">
+            This report includes: overall score, per-question feedback, strengths &amp; improvements, recommendations
+            {hasFaceAnalysis && ", face/engagement analysis"}
+            {hasVoiceAnalysis && ", voice analysis"}.
+          </p>
         </div>
 
         {/* Strengths and Areas for Improvement */}
@@ -275,101 +314,122 @@ export default function ResultPage() {
             <h2 className="text-2xl font-bold mb-4 text-green-600">
               Strengths
             </h2>
-            <ul className="space-y-2">
-              {result.strengths.map((strength, idx) => (
-                <li key={idx} className="flex items-start">
-                  <span className="text-green-500 mr-2">✓</span>
-                  <span>{strength}</span>
-                </li>
-              ))}
-            </ul>
+            {strengths.length > 0 ? (
+              <ul className="space-y-2">
+                {strengths.map((strength, idx) => (
+                  <li key={idx} className="flex items-start">
+                    <span className="text-green-500 mr-2">✓</span>
+                    <span>{strength}</span>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="text-muted-foreground">No specific strengths recorded in this analysis.</p>
+            )}
           </div>
 
           <div className="bg-card rounded-lg shadow-lg p-8">
             <h2 className="text-2xl font-bold mb-4 text-orange-600">
               Areas for Improvement
             </h2>
-            <ul className="space-y-2">
-              {result.areas_for_improvement.map((area, idx) => (
-                <li key={idx} className="flex items-start">
-                  <span className="text-orange-500 mr-2">•</span>
-                  <span>{area}</span>
-                </li>
-              ))}
-            </ul>
+            {areasForImprovement.length > 0 ? (
+              <ul className="space-y-2">
+                {areasForImprovement.map((area, idx) => (
+                  <li key={idx} className="flex items-start">
+                    <span className="text-orange-500 mr-2">•</span>
+                    <span>{area}</span>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="text-muted-foreground">No specific areas for improvement recorded.</p>
+            )}
           </div>
         </div>
 
-        {/* Detailed Feedback */}
+        {/* Detailed Feedback — analysis for every question */}
         <div className="bg-card rounded-lg shadow-lg p-8">
           <h2 className="text-2xl font-bold mb-6">Detailed Feedback</h2>
+          <p className="text-muted-foreground mb-4">
+            Per-question analysis for all {detailedFeedback.length} questions.
+          </p>
           <div className="space-y-6">
-            {result.detailed_feedback.map((feedback, idx) => (
-              <div key={idx} className="border rounded-lg p-6">
-                <div className="flex justify-between items-start mb-4">
-                  <h3 className="text-lg font-semibold">Question {idx + 1}</h3>
-                  <div
-                    className={`text-lg font-bold ${getScoreColor(feedback.score)}`}
-                  >
-                    {feedback.score}/100
+            {detailedFeedback.length === 0 ? (
+              <p className="text-muted-foreground">No per-question feedback available for this session.</p>
+            ) : (
+              detailedFeedback.map((feedback, idx) => {
+                const fStrengths = feedback.strengths ?? [];
+                const fWeaknesses = feedback.weaknesses ?? [];
+                return (
+                  <div key={idx} className="border rounded-lg p-6">
+                    <div className="flex justify-between items-start mb-4">
+                      <h3 className="text-lg font-semibold">Question {idx + 1}</h3>
+                      <div
+                        className={`text-lg font-bold ${getScoreColor(feedback.score)}`}
+                      >
+                        {feedback.score}/100
+                      </div>
+                    </div>
+
+                    <div className="mb-4">
+                      <p className="font-medium mb-2 text-lg">Question:</p>
+                      <p className="text-muted-foreground mb-4 p-3 bg-gray-50 rounded-lg border-l-4 border-blue-500">
+                        {feedback.question || "No question provided"}
+                      </p>
+
+                      <p className="font-medium mb-2 text-lg">Your Answer:</p>
+                      <p className={`text-muted-foreground mb-4 p-3 rounded-lg border-l-4 ${
+                        feedback.answer && feedback.answer !== "No answer provided"
+                          ? "bg-green-50 border-green-500"
+                          : "bg-red-50 border-red-500"
+                      }`}>
+                        {feedback.answer || "No answer provided"}
+                      </p>
+
+                      <p className="font-medium mb-2 text-lg">Feedback:</p>
+                      <p className="text-muted-foreground mb-4 p-3 bg-blue-50 rounded-lg border-l-4 border-purple-500">
+                        {feedback.feedback || "No feedback for this question."}
+                      </p>
+                    </div>
+
+                    <div className="grid md:grid-cols-2 gap-4">
+                      <div>
+                        <h4 className="font-medium text-green-600 mb-2">
+                          Strengths:
+                        </h4>
+                        {fStrengths.length > 0 ? (
+                          <ul className="space-y-1">
+                            {fStrengths.map((s, sIdx) => (
+                              <li key={sIdx} className="text-sm text-muted-foreground">
+                                • {s}
+                              </li>
+                            ))}
+                          </ul>
+                        ) : (
+                          <p className="text-sm text-muted-foreground">None noted.</p>
+                        )}
+                      </div>
+                      <div>
+                        <h4 className="font-medium text-orange-600 mb-2">
+                          Weaknesses:
+                        </h4>
+                        {fWeaknesses.length > 0 ? (
+                          <ul className="space-y-1">
+                            {fWeaknesses.map((w, wIdx) => (
+                              <li key={wIdx} className="text-sm text-muted-foreground">
+                                • {w}
+                              </li>
+                            ))}
+                          </ul>
+                        ) : (
+                          <p className="text-sm text-muted-foreground">None noted.</p>
+                        )}
+                      </div>
+                    </div>
                   </div>
-                </div>
-
-                <div className="mb-4">
-                  <p className="font-medium mb-2 text-lg">Question:</p>
-                  <p className="text-muted-foreground mb-4 p-3 bg-gray-50 rounded-lg border-l-4 border-blue-500">
-                    {feedback.question || "No question provided"}
-                  </p>
-
-                  <p className="font-medium mb-2 text-lg">Your Answer:</p>
-                  <p className={`text-muted-foreground mb-4 p-3 rounded-lg border-l-4 ${
-                    feedback.answer && feedback.answer !== "No answer provided" 
-                      ? "bg-green-50 border-green-500" 
-                      : "bg-red-50 border-red-500"
-                  }`}>
-                    {feedback.answer || "No answer provided"}
-                  </p>
-
-                  <p className="font-medium mb-2 text-lg">Feedback:</p>
-                  <p className="text-muted-foreground mb-4 p-3 bg-blue-50 rounded-lg border-l-4 border-purple-500">
-                    {feedback.feedback}
-                  </p>
-                </div>
-
-                <div className="grid md:grid-cols-2 gap-4">
-                  <div>
-                    <h4 className="font-medium text-green-600 mb-2">
-                      Strengths:
-                    </h4>
-                    <ul className="space-y-1">
-                      {feedback.strengths.map((s, sIdx) => (
-                        <li
-                          key={sIdx}
-                          className="text-sm text-muted-foreground"
-                        >
-                          • {s}
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                  <div>
-                    <h4 className="font-medium text-orange-600 mb-2">
-                      Weaknesses:
-                    </h4>
-                    <ul className="space-y-1">
-                      {feedback.weaknesses.map((w, wIdx) => (
-                        <li
-                          key={wIdx}
-                          className="text-sm text-muted-foreground"
-                        >
-                          • {w}
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                </div>
-              </div>
-            ))}
+                );
+              })
+            )}
           </div>
         </div>
 
@@ -719,14 +779,18 @@ export default function ResultPage() {
         {/* Global Recommendations */}
         <div className="bg-card rounded-lg shadow-lg p-8">
           <h2 className="text-2xl font-bold mb-4">Recommendations</h2>
-          <ul className="space-y-3">
-            {result.recommendations.map((rec, idx) => (
-              <li key={idx} className="flex items-start">
-                <span className="text-blue-500 mr-3 mt-1">→</span>
-                <span className="text-lg">{rec}</span>
-              </li>
-            ))}
-          </ul>
+          {recommendations.length > 0 ? (
+            <ul className="space-y-3">
+              {recommendations.map((rec, idx) => (
+                <li key={idx} className="flex items-start">
+                  <span className="text-blue-500 mr-3 mt-1">→</span>
+                  <span className="text-lg">{rec}</span>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="text-muted-foreground">No specific recommendations for this session.</p>
+          )}
         </div>
 
         {/* Actions */}
