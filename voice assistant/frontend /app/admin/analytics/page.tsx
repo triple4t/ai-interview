@@ -1,14 +1,10 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { apiClient } from "@/lib/api";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import {
-  BarChart3,
-  TrendingUp,
-  Calendar,
-  Download,
-} from "lucide-react";
+import { Download } from "lucide-react";
 import {
   LineChart,
   Line,
@@ -18,57 +14,56 @@ import {
   YAxis,
   CartesianGrid,
   Tooltip,
-  Legend,
   ResponsiveContainer,
-  PieChart,
-  Pie,
-  Cell,
 } from "recharts";
-
-const COLORS = ['#3b82f6', '#8b5cf6', '#ec4899', '#f59e0b', '#10b981'];
 
 export default function AdminAnalyticsPage() {
   const [dateRange, setDateRange] = useState("30d");
   const [isLoading, setIsLoading] = useState(true);
-
-  // Mock data - replace with API calls
-  const interviewsOverTime = [
-    { date: 'Jan', count: 45 },
-    { date: 'Feb', count: 52 },
-    { date: 'Mar', count: 48 },
-    { date: 'Apr', count: 61 },
-    { date: 'May', count: 55 },
-    { date: 'Jun', count: 67 },
-  ];
-
-  const passRatePerJob = [
-    { job: 'Frontend Dev', passRate: 72 },
-    { job: 'Backend Dev', passRate: 68 },
-    { job: 'Full Stack', passRate: 75 },
-    { job: 'GenAI Dev', passRate: 65 },
-  ];
-
-  const scoreDistribution = [
-    { range: '0-20', count: 5 },
-    { range: '21-40', count: 12 },
-    { range: '41-60', count: 28 },
-    { range: '61-80', count: 45 },
-    { range: '81-100', count: 30 },
-  ];
-
-  const costData = [
-    { date: 'Jan', cost: 120 },
-    { date: 'Feb', cost: 145 },
-    { date: 'Mar', cost: 138 },
-    { date: 'Apr', cost: 162 },
-    { date: 'May', cost: 155 },
-    { date: 'Jun', cost: 178 },
-  ];
+  const [interviewsOverTime, setInterviewsOverTime] = useState<{ date: string; count: number }[]>([]);
+  const [scoreDistribution, setScoreDistribution] = useState<{ range: string; count: number }[]>([]);
 
   useEffect(() => {
-    // Load analytics data
-    setIsLoading(false);
+    loadAnalytics();
   }, [dateRange]);
+
+  async function loadAnalytics() {
+    try {
+      setIsLoading(true);
+      const [scoreRes, interviewsRes] = await Promise.all([
+        apiClient.getScoreDistribution().catch(() => ({ total: 0, ranges: {} })),
+        apiClient.getAllInterviews({ skip: 0, limit: 5000 }).catch(() => []),
+      ]);
+
+      const ranges = (scoreRes?.ranges ?? {}) as Record<string, number>;
+      setScoreDistribution([
+        { range: "0-20", count: ranges["0-20"] ?? 0 },
+        { range: "21-40", count: ranges["21-40"] ?? 0 },
+        { range: "41-60", count: ranges["41-60"] ?? 0 },
+        { range: "61-80", count: ranges["61-80"] ?? 0 },
+        { range: "81-100", count: ranges["81-100"] ?? 0 },
+      ]);
+
+      const list = Array.isArray(interviewsRes) ? interviewsRes : [];
+      const byDate: Record<string, number> = {};
+      list.forEach((row: any) => {
+        const created = row.created_at;
+        if (!created) return;
+        const d = new Date(created);
+        const key = d.toISOString().slice(0, 10);
+        byDate[key] = (byDate[key] || 0) + 1;
+      });
+      const sorted = Object.entries(byDate)
+        .sort(([a], [b]) => a.localeCompare(b))
+        .map(([date, count]) => ({ date, count }));
+      setInterviewsOverTime(sorted);
+    } catch (e) {
+      setInterviewsOverTime([]);
+      setScoreDistribution([]);
+    } finally {
+      setIsLoading(false);
+    }
+  }
 
   if (isLoading) {
     return (
@@ -124,111 +119,69 @@ export default function AdminAnalyticsPage() {
 
       {/* Charts Grid */}
       <div className="grid gap-6 md:grid-cols-2">
-        {/* Interviews Over Time */}
+        {/* Interviews Over Time - real data only */}
         <Card className="border-border/50 bg-card/50 backdrop-blur-sm">
           <CardHeader>
             <CardTitle className="text-lg font-semibold">Interviews Over Time</CardTitle>
           </CardHeader>
           <CardContent>
-            <ResponsiveContainer width="100%" height={300}>
-              <LineChart data={interviewsOverTime}>
-                <CartesianGrid strokeDasharray="3 3" stroke="currentColor" opacity={0.1} />
-                <XAxis dataKey="date" stroke="currentColor" opacity={0.7} />
-                <YAxis stroke="currentColor" opacity={0.7} />
-                <Tooltip
-                  contentStyle={{
-                    backgroundColor: 'hsl(var(--card))',
-                    border: '1px solid hsl(var(--border))',
-                    borderRadius: '8px',
-                  }}
-                />
-                <Line
-                  type="monotone"
-                  dataKey="count"
-                  stroke="hsl(var(--primary))"
-                  strokeWidth={2}
-                  dot={{ fill: 'hsl(var(--primary))' }}
-                />
-              </LineChart>
-            </ResponsiveContainer>
+            {interviewsOverTime.length === 0 ? (
+              <div className="flex items-center justify-center h-[300px] text-muted-foreground">
+                No interview data yet
+              </div>
+            ) : (
+              <ResponsiveContainer width="100%" height={300}>
+                <LineChart data={interviewsOverTime}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="currentColor" opacity={0.1} />
+                  <XAxis dataKey="date" stroke="currentColor" opacity={0.7} />
+                  <YAxis stroke="currentColor" opacity={0.7} />
+                  <Tooltip
+                    contentStyle={{
+                      backgroundColor: "hsl(var(--card))",
+                      border: "1px solid hsl(var(--border))",
+                      borderRadius: "8px",
+                    }}
+                  />
+                  <Line
+                    type="monotone"
+                    dataKey="count"
+                    stroke="hsl(var(--primary))"
+                    strokeWidth={2}
+                    dot={{ fill: "hsl(var(--primary))" }}
+                  />
+                </LineChart>
+              </ResponsiveContainer>
+            )}
           </CardContent>
         </Card>
 
-        {/* Pass Rate Per Job */}
-        <Card className="border-border/50 bg-card/50 backdrop-blur-sm">
-          <CardHeader>
-            <CardTitle className="text-lg font-semibold">Pass Rate Per Job</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <ResponsiveContainer width="100%" height={300}>
-              <BarChart data={passRatePerJob}>
-                <CartesianGrid strokeDasharray="3 3" stroke="currentColor" opacity={0.1} />
-                <XAxis dataKey="job" stroke="currentColor" opacity={0.7} />
-                <YAxis stroke="currentColor" opacity={0.7} />
-                <Tooltip
-                  contentStyle={{
-                    backgroundColor: 'hsl(var(--card))',
-                    border: '1px solid hsl(var(--border))',
-                    borderRadius: '8px',
-                  }}
-                />
-                <Bar dataKey="passRate" fill="hsl(var(--primary))" radius={[8, 8, 0, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
-          </CardContent>
-        </Card>
-
-        {/* Score Distribution */}
+        {/* Score Distribution - real data only */}
         <Card className="border-border/50 bg-card/50 backdrop-blur-sm">
           <CardHeader>
             <CardTitle className="text-lg font-semibold">Score Distribution</CardTitle>
           </CardHeader>
           <CardContent>
-            <ResponsiveContainer width="100%" height={300}>
-              <BarChart data={scoreDistribution}>
-                <CartesianGrid strokeDasharray="3 3" stroke="currentColor" opacity={0.1} />
-                <XAxis dataKey="range" stroke="currentColor" opacity={0.7} />
-                <YAxis stroke="currentColor" opacity={0.7} />
-                <Tooltip
-                  contentStyle={{
-                    backgroundColor: 'hsl(var(--card))',
-                    border: '1px solid hsl(var(--border))',
-                    borderRadius: '8px',
-                  }}
-                />
-                <Bar dataKey="count" fill="hsl(var(--primary))" radius={[8, 8, 0, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
-          </CardContent>
-        </Card>
-
-        {/* Cost & Token Usage */}
-        <Card className="border-border/50 bg-card/50 backdrop-blur-sm">
-          <CardHeader>
-            <CardTitle className="text-lg font-semibold">Cost & Token Usage</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <ResponsiveContainer width="100%" height={300}>
-              <LineChart data={costData}>
-                <CartesianGrid strokeDasharray="3 3" stroke="currentColor" opacity={0.1} />
-                <XAxis dataKey="date" stroke="currentColor" opacity={0.7} />
-                <YAxis stroke="currentColor" opacity={0.7} />
-                <Tooltip
-                  contentStyle={{
-                    backgroundColor: 'hsl(var(--card))',
-                    border: '1px solid hsl(var(--border))',
-                    borderRadius: '8px',
-                  }}
-                />
-                <Line
-                  type="monotone"
-                  dataKey="cost"
-                  stroke="hsl(var(--primary))"
-                  strokeWidth={2}
-                  dot={{ fill: 'hsl(var(--primary))' }}
-                />
-              </LineChart>
-            </ResponsiveContainer>
+            {scoreDistribution.every((s) => s.count === 0) ? (
+              <div className="flex items-center justify-center h-[300px] text-muted-foreground">
+                No score data yet
+              </div>
+            ) : (
+              <ResponsiveContainer width="100%" height={300}>
+                <BarChart data={scoreDistribution}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="currentColor" opacity={0.1} />
+                  <XAxis dataKey="range" stroke="currentColor" opacity={0.7} />
+                  <YAxis stroke="currentColor" opacity={0.7} />
+                  <Tooltip
+                    contentStyle={{
+                      backgroundColor: "hsl(var(--card))",
+                      border: "1px solid hsl(var(--border))",
+                      borderRadius: "8px",
+                    }}
+                  />
+                  <Bar dataKey="count" fill="hsl(var(--primary))" radius={[8, 8, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            )}
           </CardContent>
         </Card>
       </div>

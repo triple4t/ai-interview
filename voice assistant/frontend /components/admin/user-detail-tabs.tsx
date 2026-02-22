@@ -389,7 +389,7 @@ export function UserDetailTabs({ userDetails, onClose }: UserDetailTabsProps) {
                       </div>
                       <div className="text-right ml-4">
                         <div className="text-2xl font-bold">
-                          {interview.percentage.toFixed(1)}%
+                          {interview.percentage != null ? Number(interview.percentage).toFixed(1) : "N/A"}%
                         </div>
                       </div>
                     </div>

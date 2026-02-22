@@ -212,7 +212,7 @@ class RAGService:
         jd_documents = []
         
         for filename in os.listdir(jd_dir):
-            if filename.endswith('.txt') and not filename.endswith('_fresher.txt') and not filename.endswith('_senior.txt'):
+            if filename.endswith('.txt'):
                 file_path = os.path.join(jd_dir, filename)
                 with open(file_path, 'r', encoding='utf-8') as f:
                     content = f.read()
@@ -320,7 +320,7 @@ class RAGService:
             jd_files = []
             
             for filename in os.listdir(jd_dir):
-                if filename.endswith('.txt') and not filename.endswith('_fresher.txt') and not filename.endswith('_senior.txt'):
+                if filename.endswith('.txt'):
                     file_path = os.path.join(jd_dir, filename)
                     with open(file_path, 'r', encoding='utf-8') as f:
                         jd_content = f.read()

@@ -47,29 +47,35 @@ export default function AdminDashboardPage() {
         interviews_today: data.interviews_today || 0,
         interviews_this_week: data.interviews_this_week || 0,
         total_interviews: data.total_interviews || 0,
-        avg_score: data.avg_score || 0,
+        avg_score: data.avg_score ?? data.average_score ?? 0,
         pass_rate: data.pass_rate || 0,
-        avg_interview_duration: data.avg_interview_duration || 0,
+        avg_interview_duration: data.avg_interview_duration ?? 0,
       });
-      
-      // Mock data for pipeline and health - replace with API calls
-      setPipeline({
-        resume_uploaded: 1250,
-        parsed: 1180,
-        matched: 950,
-        interview_started: 720,
-        completed: 680,
-        hired_recommended: 145,
-      });
-      
-      setHealth({
-        queue_size: 42,
-        failure_rate: 1.2,
-        avg_latency_ms: 1200,
-        token_usage_today: 125000,
-        cost_today: 12.50,
-        uptime_status: 'healthy',
-      });
+
+      const [pipelineData, healthData] = await Promise.all([
+        apiClient.getAdminPipelineStats().catch(() => null),
+        apiClient.getAdminSystemHealth().catch(() => null),
+      ]);
+      if (pipelineData) {
+        setPipeline({
+          resume_uploaded: pipelineData.resume_uploaded ?? 0,
+          parsed: pipelineData.parsed ?? 0,
+          matched: pipelineData.matched ?? 0,
+          interview_started: pipelineData.interview_started ?? 0,
+          completed: pipelineData.completed ?? 0,
+          hired_recommended: pipelineData.hired_recommended ?? 0,
+        });
+      }
+      if (healthData) {
+        setHealth({
+          queue_size: healthData.queue_size ?? 0,
+          failure_rate: healthData.failure_rate ?? 0,
+          avg_latency_ms: healthData.avg_latency_ms ?? 0,
+          token_usage_today: healthData.token_usage_today ?? 0,
+          cost_today: healthData.cost_today ?? 0,
+          uptime_status: healthData.uptime_status ?? "healthy",
+        });
+      }
       
       // Fetch real activity data
       try {
@@ -137,19 +143,19 @@ export default function AdminDashboardPage() {
     },
     {
       title: "Avg Score",
-      value: `${stats.avg_score.toFixed(1)}%`,
+      value: `${Number(stats.avg_score ?? 0).toFixed(1)}%`,
       icon: Award,
       description: "Average interview score",
     },
     {
       title: "Pass Rate",
-      value: `${stats.pass_rate.toFixed(1)}%`,
+      value: `${Number(stats.pass_rate ?? 0).toFixed(1)}%`,
       icon: TrendingUp,
       description: "Candidates passing",
     },
     {
       title: "Avg Duration",
-      value: `${stats.avg_interview_duration}min`,
+      value: `${stats.avg_interview_duration ?? 0}min`,
       icon: Clock,
       description: "Average interview time",
     },

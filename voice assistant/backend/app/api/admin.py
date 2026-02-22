@@ -286,6 +286,36 @@ async def get_overview_stats(
         )
 
 
+@router.get("/stats/pipeline")
+async def get_pipeline_stats(
+    db: Session = Depends(get_db),
+    current_admin = Depends(get_admin_user)
+):
+    """Get pipeline funnel metrics (resume uploaded -> parsed -> matched -> interview -> completed -> hired)."""
+    try:
+        return admin_service.get_pipeline_metrics(db)
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error fetching pipeline statistics: {str(e)}"
+        )
+
+
+@router.get("/stats/health")
+async def get_system_health(
+    db: Session = Depends(get_db),
+    current_admin = Depends(get_admin_user)
+):
+    """Get system health metrics (queue, latency, tokens, cost)."""
+    try:
+        return admin_service.get_system_health(db)
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error fetching system health: {str(e)}"
+        )
+
+
 @router.get("/stats/score-distribution")
 async def get_score_distribution(
     db: Session = Depends(get_db),

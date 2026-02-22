@@ -224,20 +224,20 @@ export default function AdminUsersPage() {
                           </div>
                         </td>
                         <td className="p-4">
-                          {user.average_score !== undefined ? (
+                          {user.average_score != null ? (
                             <span className={cn("font-medium", getScoreColor(user.average_score))}>
-                              {user.average_score.toFixed(1)}%
+                              {Number(user.average_score).toFixed(1)}%
                             </span>
                           ) : (
                             <span className="text-muted-foreground">—</span>
                           )}
                         </td>
                         <td className="p-4">
-                          {user.best_score !== undefined ? (
+                          {user.best_score != null ? (
                             <div className="flex items-center gap-2">
                               <Award className="h-4 w-4 text-yellow-500" />
                               <span className={cn("font-medium", getScoreColor(user.best_score))}>
-                                {user.best_score.toFixed(1)}%
+                                {Number(user.best_score).toFixed(1)}%
                               </span>
                             </div>
                           ) : (
@@ -245,15 +245,15 @@ export default function AdminUsersPage() {
                           )}
                         </td>
                         <td className="p-4">
-                          {user.latest_score !== undefined ? (
+                          {user.latest_score != null ? (
                             <div className="flex items-center gap-2">
-                              {user.latest_score > (user.average_score || 0) ? (
+                              {Number(user.latest_score) > (Number(user.average_score) || 0) ? (
                                 <TrendingUp className="h-4 w-4 text-green-500" />
                               ) : (
                                 <TrendingDown className="h-4 w-4 text-red-500" />
                               )}
                               <span className={cn("font-medium", getScoreColor(user.latest_score))}>
-                                {user.latest_score.toFixed(1)}%
+                                {Number(user.latest_score).toFixed(1)}%
                               </span>
                             </div>
                           ) : (

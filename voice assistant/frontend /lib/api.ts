@@ -303,6 +303,14 @@ class ApiClient {
     return this.request<any>("/admin/stats/overview");
   }
 
+  async getAdminPipelineStats(): Promise<any> {
+    return this.request<any>("/admin/stats/pipeline");
+  }
+
+  async getAdminSystemHealth(): Promise<any> {
+    return this.request<any>("/admin/stats/health");
+  }
+
   async getScoreDistribution(): Promise<any> {
     return this.request<any>("/admin/stats/score-distribution");
   }

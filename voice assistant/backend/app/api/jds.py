@@ -5,6 +5,8 @@ from app.db.database import get_db
 from app.schemas.jd import JDCreate, JDUpdate, JDResponse, JDVersionCreate, JDVersionResponse
 from app.models.jd import JobDescription, JDVersion
 from app.api.deps import get_admin_user
+from app.services.jd_sync import sync_jd_to_disk, remove_jd_from_disk
+import re
 
 router = APIRouter(prefix="/jds", tags=["job_descriptions"])
 
@@ -39,7 +41,10 @@ async def create_jd(
         
         db.commit()
         db.refresh(db_jd)
-        
+        try:
+            sync_jd_to_disk(db, db_jd.id, reload_rag=True)
+        except Exception as sync_err:
+            print(f"Warning: JD sync after create failed: {sync_err}")
         return db_jd
     except Exception as e:
         db.rollback()
@@ -147,7 +152,10 @@ async def create_jd_version(
     
     db.commit()
     db.refresh(db_version)
-    
+    try:
+        sync_jd_to_disk(db, jd_id, reload_rag=True)
+    except Exception as sync_err:
+        print(f"Warning: JD sync after new version failed: {sync_err}")
     return db_version
 
 
@@ -202,7 +210,10 @@ async def upload_jd_file(
         
         db.commit()
         db.refresh(db_jd)
-        
+        try:
+            sync_jd_to_disk(db, db_jd.id, reload_rag=True)
+        except Exception as sync_err:
+            print(f"Warning: JD sync after upload failed: {sync_err}")
         return db_jd
     except UnicodeDecodeError:
         raise HTTPException(
@@ -230,10 +241,13 @@ async def delete_jd(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Job description not found"
         )
-    
+    slug = (re.sub(r"[^\w\s-]", "", (jd.title or "").strip()).lower().replace(" ", "_").replace("-", "_") or f"jd_{jd_id}").strip("_")
+    slug = re.sub(r"_+", "_", slug) or f"jd_{jd_id}"
+    filename = f"{slug}.txt"
     try:
         db.delete(jd)
         db.commit()
+        remove_jd_from_disk(jd_id, filename)
         return None
     except Exception as e:
         db.rollback()
@@ -284,6 +298,10 @@ async def activate_version(
         
         db.commit()
         db.refresh(jd)
+        try:
+            sync_jd_to_disk(db, jd_id, reload_rag=True)
+        except Exception as sync_err:
+            print(f"Warning: JD sync after activate version failed: {sync_err}")
         return jd
     except Exception as e:
         db.rollback()

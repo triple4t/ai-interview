@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { apiClient } from "@/lib/api";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -9,7 +10,6 @@ import { StatusChip } from "@/components/admin/premium/status-chip";
 import { ScoreRing } from "@/components/admin/premium/score-ring";
 import {
   Search,
-  Filter,
   FileText,
   Calendar,
   Clock,
@@ -18,7 +18,6 @@ import {
   User,
 } from "lucide-react";
 import { Interview } from "@/types/admin";
-import { cn } from "@/lib/utils";
 import { formatDistanceToNow } from "@/lib/date-utils";
 
 export default function AdminInterviewsPage() {
@@ -40,28 +39,25 @@ export default function AdminInterviewsPage() {
   const loadInterviews = async () => {
     try {
       setIsLoading(true);
-      // Replace with actual API call
-      // const data = await apiClient.getInterviews();
-      // Mock data for now
-      setInterviews([
-        {
-          id: '1',
-          session_id: 'session_123',
-          user_id: 1,
-          candidate_name: 'John Doe',
-          job_title: 'Senior Frontend Developer',
-          status: 'completed',
-          total_score: 85,
-          max_score: 100,
-          percentage: 85,
-          duration_minutes: 45,
-          created_at: new Date().toISOString(),
-          risk_flags: [],
-        },
-        // Add more mock interviews
-      ]);
+      const data = await apiClient.getAllInterviews({ skip: 0, limit: 1000 });
+      const mapped: Interview[] = (data || []).map((row: any) => ({
+        id: row.session_id || String(row.session_id),
+        session_id: row.session_id,
+        user_id: row.user_id,
+        candidate_name: undefined,
+        job_title: undefined,
+        status: "completed" as const,
+        total_score: row.total_score,
+        max_score: row.max_score,
+        percentage: row.percentage != null ? Number(row.percentage) : undefined,
+        duration_minutes: undefined,
+        created_at: row.created_at || new Date().toISOString(),
+        risk_flags: [],
+      }));
+      setInterviews(mapped);
     } catch (err) {
       console.error("Error loading interviews:", err);
+      setInterviews([]);
     } finally {
       setIsLoading(false);
     }
@@ -69,21 +65,19 @@ export default function AdminInterviewsPage() {
 
   const applyFilters = () => {
     let filtered = [...interviews];
-    
     if (searchQuery.trim()) {
       const query = searchQuery.toLowerCase();
       filtered = filtered.filter(
         (interview) =>
           interview.candidate_name?.toLowerCase().includes(query) ||
           interview.job_title?.toLowerCase().includes(query) ||
-          interview.session_id.toLowerCase().includes(query)
+          (interview.session_id && String(interview.session_id).toLowerCase().includes(query)) ||
+          (interview.user_id && String(interview.user_id).toLowerCase().includes(query))
       );
     }
-    
     if (statusFilter !== "all") {
       filtered = filtered.filter((interview) => interview.status === statusFilter);
     }
-    
     setFilteredInterviews(filtered);
   };
 
@@ -217,10 +211,10 @@ export default function AdminInterviewsPage() {
                         )}
                       </td>
                       <td className="p-4">
-                        {interview.percentage !== undefined ? (
+                        {interview.percentage != null && Number(interview.percentage) === interview.percentage ? (
                           <div className="flex items-center gap-3">
-                            <ScoreRing score={interview.percentage} size="sm" />
-                            <span className="font-medium">{interview.percentage}%</span>
+                            <ScoreRing score={Number(interview.percentage)} size="sm" />
+                            <span className="font-medium">{Number(interview.percentage).toFixed(1)}%</span>
                           </div>
                         ) : (
                           <span className="text-muted-foreground">—</span>

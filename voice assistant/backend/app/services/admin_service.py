@@ -5,6 +5,8 @@ from typing import Dict, Any, List, Optional
 from app.models.user import User
 from app.models.interview import InterviewResult
 from app.models.qa import QAPair
+from app.models.candidate import Resume
+from app.models.matching import MatchResult
 
 
 class AdminService:
@@ -69,6 +71,9 @@ class AdminService:
             # Average interviews per user
             avg_interviews_per_user = (total_interviews / total_users) if total_users > 0 else 0
             
+            # Avg interview duration: not stored per-interview; use 0 or placeholder
+            avg_interview_duration = 0
+
             return {
                 "total_users": total_users,
                 "active_users": active_users,
@@ -77,13 +82,15 @@ class AdminService:
                 "interviews_this_week": interviews_this_week,
                 "interviews_this_month": interviews_this_month,
                 "average_score": round(avg_score, 2),
+                "avg_score": round(avg_score, 2),
                 "min_score": round(min_score, 2),
                 "max_score": round(max_score, 2),
                 "pass_rate": round(pass_rate, 2),
                 "pass_count": pass_count,
                 "fail_count": total_interviews - pass_count,
                 "active_users_30d": active_user_ids,
-                "avg_interviews_per_user": round(avg_interviews_per_user, 2)
+                "avg_interviews_per_user": round(avg_interviews_per_user, 2),
+                "avg_interview_duration": avg_interview_duration,
             }
         except Exception as e:
             print(f"Error getting overview stats: {e}")
@@ -98,15 +105,71 @@ class AdminService:
                 "interviews_this_week": 0,
                 "interviews_this_month": 0,
                 "average_score": 0.0,
+                "avg_score": 0.0,
                 "min_score": 0.0,
                 "max_score": 0.0,
                 "pass_rate": 0.0,
                 "pass_count": 0,
                 "fail_count": 0,
                 "active_users_30d": 0,
-                "avg_interviews_per_user": 0.0
+                "avg_interviews_per_user": 0.0,
+                "avg_interview_duration": 0,
             }
-    
+
+    def get_pipeline_metrics(self, db: Session) -> Dict[str, Any]:
+        """Get pipeline funnel metrics from DB (resume uploaded -> parsed -> matched -> interview -> completed -> hired)."""
+        try:
+            resume_uploaded = db.query(Resume).count()
+            parsed = db.query(Resume).filter(
+                (Resume.extracted_data.isnot(None)) | (Resume.raw_text.isnot(None))
+            ).count()
+            matched = db.query(MatchResult).count()
+            total_interviews = db.query(InterviewResult).count()
+            completed = total_interviews
+            hired_recommended = db.query(InterviewResult).filter(
+                InterviewResult.percentage >= 70
+            ).count()
+            return {
+                "resume_uploaded": resume_uploaded,
+                "parsed": parsed,
+                "matched": matched,
+                "interview_started": total_interviews,
+                "completed": completed,
+                "hired_recommended": hired_recommended,
+            }
+        except Exception as e:
+            print(f"Error getting pipeline metrics: {e}")
+            return {
+                "resume_uploaded": 0,
+                "parsed": 0,
+                "matched": 0,
+                "interview_started": 0,
+                "completed": 0,
+                "hired_recommended": 0,
+            }
+
+    def get_system_health(self, db: Session) -> Dict[str, Any]:
+        """Get system health metrics. Queue/latency/tokens/cost are placeholders if not tracked."""
+        try:
+            return {
+                "queue_size": 0,
+                "failure_rate": 0.0,
+                "avg_latency_ms": 0,
+                "token_usage_today": 0,
+                "cost_today": 0.0,
+                "uptime_status": "healthy",
+            }
+        except Exception as e:
+            print(f"Error getting system health: {e}")
+            return {
+                "queue_size": 0,
+                "failure_rate": 0.0,
+                "avg_latency_ms": 0,
+                "token_usage_today": 0,
+                "cost_today": 0.0,
+                "uptime_status": "healthy",
+            }
+
     def get_user_stats(self, db: Session, user_id: int) -> Optional[Dict[str, Any]]:
         """Get statistics for a specific user"""
         try:
