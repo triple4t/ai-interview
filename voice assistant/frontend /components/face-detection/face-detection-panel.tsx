@@ -605,8 +605,32 @@ export const FaceDetectionPanel = forwardRef<
                       </div>
                     )}
 
-
-
+                    {analysisData.mobile_devices && (
+                      <div className="space-y-1.5 sm:space-y-2 mb-2 sm:mb-3">
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs font-medium">
+                            Mobile devices:
+                          </span>
+                          <Badge
+                            variant={
+                              analysisData.mobile_devices
+                                .mobile_devices_detected
+                                ? "destructive"
+                                : "default"
+                            }
+                            className="text-xs px-1.5 py-0.5"
+                          >
+                            {analysisData.mobile_devices.device_count ?? 0}
+                          </Badge>
+                        </div>
+                        {analysisData.mobile_devices
+                          .mobile_devices_detected && (
+                            <div className="text-xs text-red-600">
+                              ⚠️ Phone or device in view
+                            </div>
+                          )}
+                      </div>
+                    )}
 
 
 

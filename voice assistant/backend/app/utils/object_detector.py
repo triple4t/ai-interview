@@ -15,9 +15,10 @@ class ObjectDetector:
         # Define suspicious objects we want to detect
         self.SUSPICIOUS_OBJECTS = ["cell phone", "laptop", "tablet", "book", "paper", "notebook"]
         
-        # Model paths
-        self.prototxt = "app/models/MobileNetSSD_deploy.prototxt"
-        self.model = "app/models/MobileNetSSD_deploy.caffemodel"
+        # Model paths (resolve relative to this package so it works from any CWD)
+        _root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        self.prototxt = os.path.join(_root, "models", "MobileNetSSD_deploy.prototxt")
+        self.model = os.path.join(_root, "models", "MobileNetSSD_deploy.caffemodel")
         
         # Initialize the model if files exist
         self.net = None

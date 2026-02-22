@@ -16,6 +16,23 @@ from scipy.spatial import distance as dist
 from app.services.voice_analysis import voice_analysis_service
 
 logger = logging.getLogger("face-detection")
+
+# Lazy-loaded object detector for cell phone / device detection (optional; model files may be missing)
+_object_detector_instance = None
+
+def _get_object_detector():
+    """Get or create ObjectDetector instance. Returns None if model files are missing."""
+    global _object_detector_instance
+    if _object_detector_instance is None:
+        try:
+            from app.utils.object_detector import ObjectDetector
+            _object_detector_instance = ObjectDetector()
+            if _object_detector_instance.net is None:
+                _object_detector_instance = None
+        except Exception as e:
+            logger.debug("ObjectDetector not available: %s", e)
+            _object_detector_instance = None
+    return _object_detector_instance
 router = APIRouter(prefix="/face-detection", tags=["face-detection"])
 
 
@@ -147,6 +164,22 @@ class EnhancedFaceDetector:
                                 'area': area,
                                 'aspect_ratio': aspect_ratio
                             })
+
+            # Industry-grade: DNN object detector for "cell phone" (MobileNetSSD when model available)
+            obj_det = _get_object_detector()
+            if obj_det is not None:
+                dnn_objects = obj_det.detect_objects(frame, confidence_threshold=0.4)
+                for obj in dnn_objects:
+                    label = obj.get("label", "")
+                    if label and "phone" in label.lower():
+                        bbox = obj.get("bbox", [0, 0, 0, 0])
+                        mobile_objects.append({
+                            'type': label,
+                            'confidence': float(obj.get("confidence", 0.5)),
+                            'bbox': {'x': bbox[0], 'y': bbox[1], 'width': bbox[2] - bbox[0], 'height': bbox[3] - bbox[1]},
+                            'area': obj.get("area", 0),
+                            'aspect_ratio': 1.0,
+                        })
             
             # Debug logging
             if len(mobile_objects) > 0:
@@ -335,9 +368,21 @@ class EnhancedFaceDetector:
             return []
 
     def detect_faces_opencv(self, frame: np.ndarray):
+        """Detect faces with OpenCV Haar cascade and merge overlapping detections (one face = one box)."""
         gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-        faces = self.face_cascade.detectMultiScale(gray, 1.1, 4)
-        return faces
+        raw_faces = self.face_cascade.detectMultiScale(gray, 1.1, 4)
+        if raw_faces is None or len(raw_faces) == 0:
+            return np.array([])
+        # Merge overlapping boxes so we get one box per face (industry standard: groupRectangles)
+        try:
+            # groupThreshold=1: keep group if at least 1 rect; eps=0.2: overlap ratio to merge
+            grouped, _ = cv2.groupRectangles(raw_faces.tolist(), 1, 0.2)
+            if not grouped:
+                return np.array([])
+            return np.array(grouped)
+        except Exception as e:
+            logger.debug("groupRectangles fallback: %s", e)
+            return raw_faces
 
     # ---- Head pose (simple heuristic using eye positions) ----
     def analyze_head_pose(self, frame: np.ndarray, face_landmarks) -> Dict[str, Any]:
@@ -378,23 +423,53 @@ class EnhancedFaceDetector:
             logger.exception("Error in head pose analysis: %s", e)
             return {"looking_at_screen": False, "head_pose": "unknown", "gaze_distance": 0.0}
 
-    # ---- Multiple faces check ----
+    # ---- Multiple faces check (industry-grade: no false positives) ----
     def detect_multiple_faces(self, frame: np.ndarray) -> Dict[str, Any]:
+        """
+        Count distinct faces. OpenCV detections are merged (groupRectangles) so one face = one box.
+        We only set multiple_faces_detected=True when BOTH pipelines agree on >= 2 faces,
+        to avoid false positives (reflections, duplicate boxes, posters).
+        """
         try:
             mp_count = 0
             if self._mediapipe_available and self.face_mesh is not None:
                 rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
                 results = self.face_mesh.process(rgb_frame)
                 if results and getattr(results, "multi_face_landmarks", None):
-                    mp_count = len(results.multi_face_landmarks)
+                    landmarks_list = results.multi_face_landmarks
+                    # Filter out duplicate/reflection: count only faces with distinct centers (min distance)
+                    if len(landmarks_list) >= 2:
+                        h, w = frame.shape[:2]
+                        centers = []
+                        for lm in landmarks_list:
+                            if lm and len(lm.landmark) > 4:
+                                nose = lm.landmark[4]
+                                centers.append((nose.x * w, nose.y * h))
+                        if len(centers) >= 2:
+                            min_dist = float("inf")
+                            for i in range(len(centers)):
+                                for j in range(i + 1, len(centers)):
+                                    d = np.sqrt((centers[i][0] - centers[j][0]) ** 2 + (centers[i][1] - centers[j][1]) ** 2)
+                                    min_dist = min(min_dist, d)
+                            # If two "faces" are very close (< 15% of frame diag), treat as one (reflection/dup)
+                            if min_dist < 0.15 * np.sqrt(w * w + h * h):
+                                mp_count = 1
+                            else:
+                                mp_count = len(landmarks_list)
+                        else:
+                            mp_count = len(landmarks_list)
+                    else:
+                        mp_count = len(landmarks_list)
 
             ocv_faces = self.detect_faces_opencv(frame)
             ocv_count = len(ocv_faces) if ocv_faces is not None else 0
 
             final_count = max(int(mp_count), int(ocv_count))
+            # Enterprise: only flag multiple when BOTH pipelines agree on >= 2 (zero false positives)
+            multiple_faces_detected = (mp_count >= 2 and ocv_count >= 2)
             return {
                 "face_count": final_count,
-                "multiple_faces_detected": final_count > 1,
+                "multiple_faces_detected": bool(multiple_faces_detected),
                 "mediapipe_faces": int(mp_count),
                 "opencv_faces": int(ocv_count),
             }
@@ -536,13 +611,15 @@ class EnhancedFaceDetector:
             if self.state_face_detected and self.no_face_frames >= self.flip_down:
                 self.state_face_detected = False
 
-        # 3) features & output
+        # 3) Always run multi-face, mobile, suspicious (even when no face) for enterprise proctoring
+        multi = self.detect_multiple_faces(frame)
+        mobile = self.detect_mobile_devices(frame)
+        suspicious = self.detect_suspicious_objects(frame)
+
+        # 4) features & output
         if confidence > 0.0:
             head_pose = self.analyze_head_pose(frame, face_landmarks)
             eye_track = self.analyze_eye_tracking(frame, face_landmarks)
-            multi = self.detect_multiple_faces(frame)
-            mobile = self.detect_mobile_devices(frame)
-            suspicious = self.detect_suspicious_objects(frame)
 
             attention_score = 0.0
             if head_pose.get("looking_at_screen"):
@@ -633,21 +710,34 @@ class EnhancedFaceDetector:
             analysis["recommendations"] = recs
             analysis["suspicious_behavior"] = sus
         else:
+            recs, sus = [], []
+            if multi.get("multiple_faces_detected"):
+                recs.append("Only one person should be visible in the camera")
+                sus.append(f"Multiple faces detected ({multi.get('face_count', 0)} people)")
+            if mobile.get("mobile_devices_detected"):
+                recs.append("Please remove mobile devices from camera view")
+                sus.append(f"Mobile device detected ({mobile.get('device_count', 0)} devices)")
+            if suspicious.get("suspicious_objects_detected"):
+                recs.append("Please remove any papers, notes, or reference materials")
+                sus.append(f"Suspicious objects detected ({suspicious.get('object_count', 0)} objects)")
             analysis.update(
                 {
                     "face_detected": bool(self.state_face_detected),
-                    "face_count": 0,
+                    "face_count": int(multi.get("face_count", 0)),
                     "confidence": 0.0,
                     "attention_score": 0.0,
                     "engagement_level": "low",
                     "eye_tracking": {"eye_state": "unknown", "eye_tracking": "unknown"},
                     "head_pose": {"looking_at_screen": False, "head_pose": "unknown"},
-                    "multiple_faces": {"face_count": 0, "multiple_faces_detected": False},
-                    "mobile_devices": {"mobile_devices_detected": False, "device_count": 0, "devices": []},
-                    "suspicious_objects": {"suspicious_objects_detected": False, "object_count": 0, "objects": []},
+                    "multiple_faces": multi,
+                    "mobile_devices": mobile,
+                    "suspicious_objects": suspicious,
+                    "recommendations": recs,
+                    "suspicious_behavior": sus,
                 }
             )
             analysis["screen_sharing"] = self.detect_screen_sharing(analysis)
+            analysis["voice_analysis"] = self.analyze_voice_patterns()
 
         return frame, analysis
 
@@ -749,6 +839,8 @@ async def websocket_endpoint(websocket: WebSocket, client_id: str):
                                             "eye_tracking": {"eye_state": "unknown", "eye_tracking": "unknown"},
                                             "head_pose": {"looking_at_screen": False, "head_pose": "unknown"},
                                             "multiple_faces": {"face_count": 0, "multiple_faces_detected": False},
+                                            "mobile_devices": {"mobile_devices_detected": False, "device_count": 0, "devices": []},
+                                            "suspicious_objects": {"suspicious_objects_detected": False, "object_count": 0, "objects": []},
                                             "screen_sharing": {"screen_sharing_detected": False, "time_since_last_activity": 0.0},
                                             "voice_analysis": {"speaking": False, "confidence": 0.0, "nervousness": 0.0, "speech_patterns": []},
                                             "suspicious_behavior": ["Frame processing error"],
