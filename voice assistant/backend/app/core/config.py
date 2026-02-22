@@ -1,6 +1,13 @@
 from pydantic_settings import BaseSettings
-from typing import Optional, List
+from typing import Optional, List, Union
 import os
+
+def _parse_origins(v: Union[str, List[str]]) -> List[str]:
+    if isinstance(v, list):
+        return v
+    if isinstance(v, str):
+        return [x.strip() for x in v.split(",") if x.strip()]
+    return []
 
 class Settings(BaseSettings):
     # Application settings
@@ -23,8 +30,17 @@ class Settings(BaseSettings):
     database_pool_timeout: int = 30
     database_pool_recycle: int = 1800
     
-    # CORS settings
-    allowed_origins: List[str] = ["http://localhost:3000", "http://127.0.0.1:3000"]
+    # CORS settings (set ALLOWED_ORIGINS env as comma-separated to override in production)
+    allowed_origins: Union[List[str], str] = [
+        "http://localhost:3000",
+        "http://127.0.0.1:3000",
+        "https://interview.eastus2.cloudapp.azure.com",
+        "http://interview.eastus2.cloudapp.azure.com",
+    ]
+
+    @property
+    def allowed_origins_list(self) -> List[str]:
+        return _parse_origins(self.allowed_origins)
     
     # Email settings (for future email verification)
     smtp_server: Optional[str] = None

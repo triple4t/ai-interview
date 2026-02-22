@@ -18,13 +18,14 @@ app = FastAPI(
     debug=settings.debug
 )
 
-# Add CORS middleware
+# Add CORS middleware (production origin allowed for face analysis / API)
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=settings.allowed_origins,
+    allow_origins=settings.allowed_origins_list,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
+    expose_headers=["*"],
 )
 
 # Include API routes
