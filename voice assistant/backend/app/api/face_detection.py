@@ -92,114 +92,41 @@ class EnhancedFaceDetector:
         self.mobile_device_detected = False
         self.suspicious_objects_detected = []
 
-    # ---- Mobile device detection ----
+    # ---- Mobile device detection (enterprise: only DNN "cell phone" to avoid false positives) ----
     def detect_mobile_devices(self, frame: np.ndarray) -> Dict[str, Any]:
-        """Detect mobile phones, tablets, and other electronic devices using OpenCV."""
+        """
+        Only report mobile devices when DNN (MobileNetSSD) detects 'cell phone'.
+        Contour/heuristic methods caused false positives (glasses, collars, monitors).
+        """
         try:
             mobile_objects = []
-            
-            # Use contour detection for rectangular objects that might be phones
-            gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-            blurred = cv2.GaussianBlur(gray, (5, 5), 0)
-            edges = cv2.Canny(blurred, 30, 100)  # Lowered thresholds for better detection
-            contours, _ = cv2.findContours(edges, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-            
-            h, w = frame.shape[:2]
-            frame_area = h * w
-            
-            for contour in contours:
-                area = cv2.contourArea(contour)
-                if area > 500:  # Lowered minimum area threshold
-                    x, y, w_rect, h_rect = cv2.boundingRect(contour)
-                    aspect_ratio = w_rect / h_rect if h_rect > 0 else 0
-                    
-                    # More flexible phone-like aspect ratios (phones can be held in different orientations)
-                    if 0.8 <= aspect_ratio <= 4.0 and area > 2000:
-                        # Check if it's not a face (avoid false positives)
-                        face_roi = gray[y:y+h_rect, x:x+w_rect]
-                        faces_in_roi = self.face_cascade.detectMultiScale(face_roi, 1.1, 4)
-                        if len(faces_in_roi) == 0:
-                            # Additional checks for phone-like characteristics
-                            relative_area = area / frame_area
-                            if relative_area > 0.001 and relative_area < 0.1:  # Not too small, not too large
-                                mobile_objects.append({
-                                    'type': 'potential_mobile_device',
-                                    'confidence': 0.8,
-                                    'bbox': {'x': x, 'y': y, 'width': w_rect, 'height': h_rect},
-                                    'area': area,
-                                    'aspect_ratio': aspect_ratio
-                                })
-            
-            # Also check for dark rectangular regions (phones often appear dark)
-            hsv = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
-            lower_dark = np.array([0, 0, 0])
-            upper_dark = np.array([180, 255, 50])
-            dark_mask = cv2.inRange(hsv, lower_dark, upper_dark)
-            
-            dark_contours, _ = cv2.findContours(dark_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-            
-            for contour in dark_contours:
-                area = cv2.contourArea(contour)
-                if area > 1000:  # Dark objects with reasonable size
-                    x, y, w_rect, h_rect = cv2.boundingRect(contour)
-                    aspect_ratio = w_rect / h_rect if h_rect > 0 else 0
-                    
-                    # Check for phone-like dark rectangles
-                    if 0.8 <= aspect_ratio <= 4.0 and area > 2000:
-                        # Avoid duplicates
-                        is_duplicate = False
-                        for existing in mobile_objects:
-                            existing_bbox = existing['bbox']
-                            # Check if rectangles overlap significantly
-                            if (abs(x - existing_bbox['x']) < 50 and 
-                                abs(y - existing_bbox['y']) < 50):
-                                is_duplicate = True
-                                break
-                        
-                        if not is_duplicate:
-                            mobile_objects.append({
-                                'type': 'dark_mobile_device',
-                                'confidence': 0.9,
-                                'bbox': {'x': x, 'y': y, 'width': w_rect, 'height': h_rect},
-                                'area': area,
-                                'aspect_ratio': aspect_ratio
-                            })
-
-            # Industry-grade: DNN object detector for "cell phone" (MobileNetSSD when model available)
             obj_det = _get_object_detector()
             if obj_det is not None:
-                dnn_objects = obj_det.detect_objects(frame, confidence_threshold=0.4)
+                dnn_objects = obj_det.detect_objects(frame, confidence_threshold=0.5)
                 for obj in dnn_objects:
                     label = obj.get("label", "")
                     if label and "phone" in label.lower():
                         bbox = obj.get("bbox", [0, 0, 0, 0])
                         mobile_objects.append({
-                            'type': label,
-                            'confidence': float(obj.get("confidence", 0.5)),
-                            'bbox': {'x': bbox[0], 'y': bbox[1], 'width': bbox[2] - bbox[0], 'height': bbox[3] - bbox[1]},
-                            'area': obj.get("area", 0),
-                            'aspect_ratio': 1.0,
+                            "type": label,
+                            "confidence": float(obj.get("confidence", 0.5)),
+                            "bbox": {"x": bbox[0], "y": bbox[1], "width": bbox[2] - bbox[0], "height": bbox[3] - bbox[1]},
+                            "area": obj.get("area", 0),
+                            "aspect_ratio": 1.0,
                         })
-            
-            # Debug logging
-            if len(mobile_objects) > 0:
-                logger.info(f"Mobile devices detected: {len(mobile_objects)} objects")
-                for i, obj in enumerate(mobile_objects):
-                    logger.info(f"  Device {i+1}: {obj['type']}, confidence: {obj['confidence']}, area: {obj['area']}, aspect_ratio: {obj['aspect_ratio']:.2f}")
-            else:
-                logger.debug(f"No mobile devices detected. Found {len(contours)} contours and {len(dark_contours)} dark contours")
-            
+            if mobile_objects:
+                logger.info("Mobile devices (DNN): %d cell phone(s)", len(mobile_objects))
             return {
-                'mobile_devices_detected': len(mobile_objects) > 0,
-                'device_count': len(mobile_objects),
-                'devices': mobile_objects
+                "mobile_devices_detected": len(mobile_objects) > 0,
+                "device_count": len(mobile_objects),
+                "devices": mobile_objects,
             }
         except Exception as e:
             logger.exception("Error in mobile device detection: %s", e)
             return {
-                'mobile_devices_detected': False,
-                'device_count': 0,
-                'devices': []
+                "mobile_devices_detected": False,
+                "device_count": 0,
+                "devices": [],
             }
 
     # ---- Suspicious object detection ----
@@ -377,9 +304,10 @@ class EnhancedFaceDetector:
         try:
             # groupThreshold=1: keep group if at least 1 rect; eps=0.2: overlap ratio to merge
             grouped, _ = cv2.groupRectangles(raw_faces.tolist(), 1, 0.2)
-            if not grouped:
-                return np.array([])
-            return np.array(grouped)
+            if grouped:
+                return np.array(grouped)
+            # Some OpenCV versions return [] for a single rect; never drop the only face
+            return raw_faces
         except Exception as e:
             logger.debug("groupRectangles fallback: %s", e)
             return raw_faces
@@ -805,6 +733,13 @@ async def websocket_endpoint(websocket: WebSocket, client_id: str):
                     frame = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
                     if frame is None:
                         continue
+                    # Resize small frames so face detection works (e.g. small preview from frontend)
+                    h, w = frame.shape[:2]
+                    min_side = 320
+                    if h < min_side or w < min_side:
+                        scale = min_side / min(h, w)
+                        new_w, new_h = int(round(w * scale)), int(round(h * scale))
+                        frame = cv2.resize(frame, (new_w, new_h), interpolation=cv2.INTER_LINEAR)
 
                     detector = get_face_detector()
                     _, analysis = detector.process_frame(frame)
