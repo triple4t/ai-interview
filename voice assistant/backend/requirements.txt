@@ -25,7 +25,7 @@ langgraph
 langchain-chroma
 langchain-text-splitters
 
-# Vector Store - Latest version
+# Vector Store
 chromadb>=0.5.0
 
 # OpenAI - Latest compatible version
@@ -40,3 +40,11 @@ scipy>=1.13.0
 # Utilities
 python-dotenv>=1.0.1
 httpx>=0.28.0
+
+# LiveKit agent - pinned to avoid backtracking with LangChain
+livekit-agents==1.4.0
+livekit-plugins-openai>=1.4.0
+livekit-plugins-silero>=1.4.0
+livekit-plugins-noise-cancellation>=0.2.0
+livekit-plugins-cartesia>=1.3.0
+livekit-plugins-deepgram>=1.4.0

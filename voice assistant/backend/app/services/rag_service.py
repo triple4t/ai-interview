@@ -274,27 +274,28 @@ class RAGService:
             return f"Error processing resume: {str(e)}"
     
     def get_resume_content(self, user_id: str) -> str:
-        """Retrieve resume content for a user"""
+        """Retrieve resume content for a user by user_id (metadata filter).
+        Uses Chroma's where clause so we always get this user's resume regardless
+        of other documents in the collection (fixes production bug where semantic
+        search top-k didn't include the user's docs)."""
         if not self.openai_configured:
             return ""
-            
+
         try:
-            retriever = self.resume_vector_store.as_retriever(
-                search_type="mmr",
-                search_kwargs={'k': 10, 'lambda_mult': 0.25}
+            results = self.resume_vector_store._collection.get(
+                where={"user_id": user_id},
+                include=["documents"],
             )
-            
-            # Search for user's resume
-            docs = retriever.invoke("resume content")
-            
-            # Filter by user_id
-            user_docs = [doc for doc in docs if doc.metadata.get("user_id") == user_id]
-            
-            if user_docs:
-                return "\n\n".join(doc.page_content for doc in user_docs)
-            else:
+            if not results or not results.get("documents"):
                 return ""
-                
+
+            docs = results["documents"]
+            # Chroma may return list of str (one per id) or list of list; flatten if needed
+            if docs and isinstance(docs[0], list):
+                docs = [d for sublist in docs for d in sublist]
+            content = "\n\n".join(docs)
+            return content if content else ""
+
         except Exception as e:
             print(f"Error retrieving resume: {e}")
             return ""
