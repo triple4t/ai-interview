@@ -92,17 +92,17 @@ class EnhancedFaceDetector:
         self.mobile_device_detected = False
         self.suspicious_objects_detected = []
 
-    # ---- Mobile device detection (enterprise: only DNN "cell phone" to avoid false positives) ----
+    # ---- Mobile device detection: DNN when available, else conservative heuristic ----
     def detect_mobile_devices(self, frame: np.ndarray) -> Dict[str, Any]:
         """
-        Only report mobile devices when DNN (MobileNetSSD) detects 'cell phone'.
-        Contour/heuristic methods caused false positives (glasses, collars, monitors).
+        Prefer DNN (MobileNetSSD) 'cell phone' when model is loaded.
+        When DNN is not available, use a strict heuristic (max 1 object, outside face zone).
         """
         try:
             mobile_objects = []
             obj_det = _get_object_detector()
-            if obj_det is not None:
-                dnn_objects = obj_det.detect_objects(frame, confidence_threshold=0.5)
+            if obj_det is not None and obj_det.net is not None:
+                dnn_objects = obj_det.detect_objects(frame, confidence_threshold=0.4)
                 for obj in dnn_objects:
                     label = obj.get("label", "")
                     if label and "phone" in label.lower():
@@ -114,8 +114,11 @@ class EnhancedFaceDetector:
                             "area": obj.get("area", 0),
                             "aspect_ratio": 1.0,
                         })
+            else:
+                # No DNN: conservative heuristic so we still detect obvious phones without 4 false positives
+                mobile_objects = self._detect_mobile_heuristic(frame)
             if mobile_objects:
-                logger.info("Mobile devices (DNN): %d cell phone(s)", len(mobile_objects))
+                logger.info("Mobile devices: %d", len(mobile_objects))
             return {
                 "mobile_devices_detected": len(mobile_objects) > 0,
                 "device_count": len(mobile_objects),
@@ -128,6 +131,83 @@ class EnhancedFaceDetector:
                 "device_count": 0,
                 "devices": [],
             }
+
+    def _detect_mobile_heuristic(self, frame: np.ndarray) -> list:
+        """
+        Strict heuristic when DNN is not available: at most 1 phone-like region.
+        Must be outside center (face zone), phone-like aspect ratio, and not a face.
+        """
+        out = []
+        try:
+            h, w = frame.shape[:2]
+            frame_area = h * w
+            center_x, center_y = w / 2.0, h / 2.0
+            face_radius = 0.35 * min(w, h)  # center region we treat as face
+
+            gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+            blurred = cv2.GaussianBlur(gray, (5, 5), 0)
+            edges = cv2.Canny(blurred, 40, 120)
+            contours, _ = cv2.findContours(edges, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+
+            for contour in contours:
+                if len(out) >= 1:
+                    break
+                area = cv2.contourArea(contour)
+                if area < 1500 or area > frame_area * 0.08:
+                    continue
+                x, y, w_rect, h_rect = cv2.boundingRect(contour)
+                cx_rect = x + w_rect / 2.0
+                cy_rect = y + h_rect / 2.0
+                dist_from_center = np.sqrt((cx_rect - center_x) ** 2 + (cy_rect - center_y) ** 2)
+                if dist_from_center < face_radius:
+                    continue
+                aspect_ratio = w_rect / h_rect if h_rect > 0 else 0
+                if not (0.45 <= aspect_ratio <= 2.2):
+                    continue
+                face_roi = gray[y : y + h_rect, x : x + w_rect]
+                faces_in_roi = self.face_cascade.detectMultiScale(face_roi, 1.1, 5)
+                if len(faces_in_roi) > 0:
+                    continue
+                out.append({
+                    "type": "potential_mobile_device",
+                    "confidence": 0.65,
+                    "bbox": {"x": x, "y": y, "width": w_rect, "height": h_rect},
+                    "area": area,
+                    "aspect_ratio": aspect_ratio,
+                })
+            if not out:
+                hsv = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
+                dark_mask = cv2.inRange(hsv, np.array([0, 0, 0]), np.array([180, 255, 55]))
+                dark_contours, _ = cv2.findContours(dark_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+                for contour in dark_contours:
+                    if len(out) >= 1:
+                        break
+                    area = cv2.contourArea(contour)
+                    if area < 2000 or area > frame_area * 0.06:
+                        continue
+                    x, y, w_rect, h_rect = cv2.boundingRect(contour)
+                    cx_rect = x + w_rect / 2.0
+                    cy_rect = y + h_rect / 2.0
+                    dist_from_center = np.sqrt((cx_rect - center_x) ** 2 + (cy_rect - center_y) ** 2)
+                    if dist_from_center < face_radius:
+                        continue
+                    aspect_ratio = w_rect / h_rect if h_rect > 0 else 0
+                    if not (0.5 <= aspect_ratio <= 2.0):
+                        continue
+                    face_roi = gray[y : y + h_rect, x : x + w_rect]
+                    faces_in_roi = self.face_cascade.detectMultiScale(face_roi, 1.1, 5)
+                    if len(faces_in_roi) > 0:
+                        continue
+                    out.append({
+                        "type": "potential_mobile_device",
+                        "confidence": 0.7,
+                        "bbox": {"x": x, "y": y, "width": w_rect, "height": h_rect},
+                        "area": area,
+                        "aspect_ratio": aspect_ratio,
+                    })
+        except Exception as e:
+            logger.debug("Mobile heuristic failed: %s", e)
+        return out
 
     # ---- Suspicious object detection ----
     def detect_suspicious_objects(self, frame: np.ndarray) -> Dict[str, Any]:
