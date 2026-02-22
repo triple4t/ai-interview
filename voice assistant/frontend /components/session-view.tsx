@@ -51,12 +51,14 @@ interface SessionViewProps {
   appConfig: AppConfig;
   disabled: boolean;
   sessionStarted: boolean;
+  onEndCallStarted?: () => void;
 }
 
 export const SessionView = ({
   appConfig,
   disabled,
   sessionStarted,
+  onEndCallStarted,
   ref,
 }: React.ComponentProps<"div"> & SessionViewProps) => {
   const { state: agentState } = useVoiceAssistant();
@@ -241,6 +243,8 @@ export const SessionView = ({
     console.log(
       "🔄 End Call button clicked - starting navigation to result page",
     );
+
+    onEndCallStarted?.();
 
     // Force disconnect face detection immediately
     if (faceDetectionRef.current) {

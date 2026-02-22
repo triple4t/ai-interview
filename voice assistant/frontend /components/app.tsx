@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Room, RoomEvent } from "livekit-client";
 import { motion } from "motion/react";
 import {
@@ -18,6 +18,15 @@ import type { AppConfig } from "@/lib/types";
 const MotionWelcome = motion.create(Welcome);
 const MotionSessionView = motion.create(SessionView);
 
+function FullPageSpinner({ message = "Preparing your results..." }: { message?: string }) {
+  return (
+    <div className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-background">
+      <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mb-4" />
+      <p className="text-muted-foreground text-sm">{message}</p>
+    </div>
+  );
+}
+
 interface AppProps {
   appConfig: AppConfig;
 }
@@ -25,11 +34,19 @@ interface AppProps {
 export function App({ appConfig }: AppProps) {
   const room = useMemo(() => new Room(), []);
   const [sessionStarted, setSessionStarted] = useState(false);
+  const [isProcessingAfterEndCall, setIsProcessingAfterEndCall] = useState(false);
+  const processingAfterEndCallRef = useRef(false);
   const { connectionDetails, refreshConnectionDetails } =
     useConnectionDetails();
 
+  const onEndCallStarted = () => {
+    processingAfterEndCallRef.current = true;
+    setIsProcessingAfterEndCall(true);
+  };
+
   useEffect(() => {
     const onDisconnected = () => {
+      if (processingAfterEndCallRef.current) return;
       setSessionStarted(false);
       refreshConnectionDetails();
     };
@@ -82,6 +99,15 @@ export function App({ appConfig }: AppProps) {
 
   const { startButtonText } = appConfig;
 
+  if (sessionStarted && isProcessingAfterEndCall) {
+    return (
+      <>
+        <FullPageSpinner />
+        <Toaster />
+      </>
+    );
+  }
+
   return (
     <>
       {!sessionStarted && (
@@ -106,6 +132,7 @@ export function App({ appConfig }: AppProps) {
             appConfig={appConfig}
             disabled={!sessionStarted}
             sessionStarted={sessionStarted}
+            onEndCallStarted={onEndCallStarted}
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
