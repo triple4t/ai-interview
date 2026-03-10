@@ -12,9 +12,9 @@ import {
   Briefcase,
   Users,
   ExternalLink,
-  RefreshCw,
   Plus,
   Trash2,
+  RotateCcw,
 } from "lucide-react";
 import { Job } from "@/types/admin";
 import { cn } from "@/lib/utils";
@@ -96,6 +96,17 @@ export default function AdminJobsPage() {
       loadJobs();
     } catch (err: any) {
       toast.error(err.message || "Failed to delete job");
+    }
+  };
+
+  const handleReopen = async (jobId: number, e: React.MouseEvent) => {
+    e.stopPropagation();
+    try {
+      await apiClient.reopenJD(jobId);
+      toast.success("Job reopened successfully – it’s now available to candidates");
+      loadJobs();
+    } catch (err: any) {
+      toast.error(err.message || "Failed to reopen job");
     }
   };
 
@@ -193,11 +204,11 @@ export default function AdminJobsPage() {
                   </div>
                 </div>
 
-                <div className="flex gap-2">
+                <div className="flex flex-wrap gap-2">
                   <Button
                     variant="outline"
                     size="sm"
-                    className="flex-1"
+                    className="flex-1 min-w-0"
                     onClick={(e) => {
                       e.stopPropagation();
                       handleViewDetails(job.id);
@@ -206,6 +217,17 @@ export default function AdminJobsPage() {
                     View Details
                     <ExternalLink className="h-4 w-4 ml-2" />
                   </Button>
+                  {job.status === "closed" && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={(e) => handleReopen(job.id, e)}
+                      title="Reopen job (make available to candidates)"
+                    >
+                      <RotateCcw className="h-4 w-4 mr-1" />
+                      Reopen
+                    </Button>
+                  )}
                   <Button
                     variant="outline"
                     size="sm"

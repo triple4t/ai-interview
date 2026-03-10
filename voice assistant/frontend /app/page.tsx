@@ -85,7 +85,7 @@ const steps = [
     number: "03",
     title: "Get Ranked Candidates",
     description:
-      "Scores, summaries, and top candidates — ready for final round.",
+      "Scores, summaries, and top candidates — ready for your team to review.",
     icon: BarChart3,
   },
 ];
@@ -127,30 +127,28 @@ export default function Page() {
               variants={fadeInUp}
               className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary/10 border border-primary/20 text-primary text-sm font-semibold mb-8"
             >
-              We don&apos;t help you interview. We remove it.
+              Save time. Save money. Hire smarter.
             </motion.div>
 
             <motion.h1
               variants={fadeInUp}
               className="text-5xl md:text-6xl lg:text-7xl font-bold text-foreground leading-[1.1] mb-5"
             >
-              We Replace Your First Interview Round.
+              AI-Powered Screening That Fits Your Time.
             </motion.h1>
 
             <motion.p
               variants={fadeInUp}
               className="text-xl md:text-2xl text-foreground font-medium max-w-2xl mx-auto mb-4"
             >
-              AI conducts, evaluates, and shortlists candidates — automatically.
+              AI helps recruiters conduct, evaluate, and shortlist candidates — in less time.
             </motion.p>
 
             <motion.p
               variants={fadeInUp}
               className="text-lg text-muted-foreground max-w-xl mx-auto mb-10"
             >
-              Stop wasting hours on screening calls.
-              <br />
-              Only meet candidates who are actually worth it.
+              Spend less time on screening. Save money. Focus on candidates who matter.
             </motion.p>
 
             <motion.div
@@ -195,10 +193,10 @@ export default function Page() {
             className="text-center mb-16"
           >
             <h2 className="text-3xl md:text-5xl font-bold text-foreground mb-4">
-              Stop Screening. Start Deciding.
+              Less Screening Time. Better Decisions.
             </h2>
             <p className="text-foreground/80 text-lg max-w-2xl mx-auto font-medium">
-              Outcome-driven hiring. No fluff.
+              Outcome-driven hiring that saves recruiters time and money.
             </p>
           </motion.div>
 
@@ -286,7 +284,7 @@ export default function Page() {
             viewport={{ once: true }}
             className="text-3xl md:text-4xl font-bold text-foreground text-center mb-12"
           >
-            What You Get Instead
+            What You Get
           </motion.h2>
           <ul className="grid sm:grid-cols-2 gap-4">
             {outcomes.map((point, i) => (
@@ -351,7 +349,7 @@ export default function Page() {
             viewport={{ once: true }}
             className="text-lg text-foreground/80 font-medium mb-10 max-w-xl mx-auto"
           >
-            Let AI handle your first round — so your team can focus on final decisions.
+            Let AI support your screening — so your team saves time and focuses on the right candidates.
           </motion.p>
           <motion.div initial={{ opacity: 0, y: 12 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }}>
             <Link href="/signup">

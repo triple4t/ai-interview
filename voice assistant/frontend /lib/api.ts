@@ -504,6 +504,12 @@ class ApiClient {
     });
   }
 
+  async reopenJD(jdId: number): Promise<any> {
+    return this.request<any>(`/jds/${jdId}/reopen`, {
+      method: "PATCH",
+    });
+  }
+
   // Export and matching endpoints
   async exportInterviews(format: "csv" | "json" = "csv"): Promise<Blob> {
     const url = `${this.baseUrl}/admin/interviews/export?format=${format}`;
