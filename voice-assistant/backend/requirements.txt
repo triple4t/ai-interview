@@ -2,8 +2,7 @@
 fastapi>=0.115.0
 uvicorn[standard]>=0.32.0
 python-multipart>=0.0.12
-pydantic>=2.10.0
-pydantic[email]
+pydantic[email]>=2.10.0
 pydantic-settings>=2.7.0
 python-dotenv>=1.0.1
 # Database
@@ -40,6 +39,7 @@ scipy>=1.13.0
 # Utilities
 python-dotenv>=1.0.1
 httpx>=0.28.0
+pypdf>=5.0.0
 
 # LiveKit agent - 1.2.x works with openai 1.x (1.4.x requires openai>=2, conflicts with langchain-openai)
 livekit-agents>=1.2.0,<1.4
@@ -48,3 +48,4 @@ livekit-plugins-silero>=1.2.0
 livekit-plugins-noise-cancellation>=0.2.0
 livekit-plugins-cartesia>=1.2.0
 livekit-plugins-deepgram>=1.2.0
+livekit-plugins-turn-detector>=1.2.0,<1.4
