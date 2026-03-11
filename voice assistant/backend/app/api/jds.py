@@ -257,6 +257,47 @@ async def delete_jd(
         )
 
 
+@router.patch("/{jd_id}/reopen", response_model=JDResponse)
+async def reopen_jd(
+    jd_id: int,
+    db: Session = Depends(get_db),
+    admin_user = Depends(get_admin_user)
+):
+    """Reopen a closed job by activating its current version (admin only)"""
+    from sqlalchemy.orm import joinedload
+
+    jd = db.query(JobDescription).options(
+        joinedload(JobDescription.current_version)
+    ).filter(JobDescription.id == jd_id).first()
+    if not jd:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Job description not found"
+        )
+    if not jd.current_version:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Job has no version to reopen. Add a version first."
+        )
+
+    # Deactivate any other active version
+    db.query(JDVersion).filter(
+        JDVersion.jd_id == jd_id,
+        JDVersion.is_active == True
+    ).update({JDVersion.is_active: False})
+
+    # Activate current version
+    jd.current_version.is_active = True
+
+    db.commit()
+    db.refresh(jd)
+    try:
+        sync_jd_to_disk(db, jd_id, reload_rag=True)
+    except Exception as sync_err:
+        print(f"Warning: JD sync after reopen failed: {sync_err}")
+    return jd
+
+
 @router.patch("/{jd_id}/versions/{version_id}/activate", response_model=JDResponse)
 async def activate_version(
     jd_id: int,

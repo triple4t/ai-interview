@@ -55,6 +55,19 @@ def sync_jd_to_disk(db: Session, jd_id: int, reload_rag: bool = True) -> Optiona
     if not jd or not jd.current_version:
         return None
 
+    # Only sync JDs that are open (is_active) – closed jobs are not available to candidates
+    if not jd.current_version.is_active:
+        slug = _slug_from_title(jd.title, jd.id)
+        jd_filename = f"{slug}.txt"
+        remove_jd_from_disk(jd_id, jd_filename)
+        if reload_rag:
+            try:
+                from app.services.rag_service import rag_service
+                rag_service.load_job_descriptions()
+            except Exception as e:
+                print(f"Warning: could not reload RAG after removing closed JD: {e}")
+        return None
+
     _, jd_dir, questions_dir = get_backend_dirs()
     os.makedirs(jd_dir, exist_ok=True)
     os.makedirs(questions_dir, exist_ok=True)
