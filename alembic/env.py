@@ -8,7 +8,7 @@ import sys
 import os
 
 # Add the backend directory to Python path
-backend_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'voice assistant', 'backend'))
+backend_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'voice-assistant', 'backend'))
 sys.path.insert(0, backend_path)
 
 # Import Base and all models so Alembic can detect them

@@ -172,8 +172,8 @@ This is a **production-grade AI-powered interview assistant** that conducts auto
 
 ```
 interview/
-├── voice assistant/
-│   ├── frontend /                    # Next.js frontend
+├── voice-assistant/
+│   ├── frontend/                    # Next.js frontend
 │   │   ├── app/                      # Next.js app router
 │   │   │   ├── (app)/               # Protected routes
 │   │   │   ├── api/                 # API routes (token server)
@@ -1012,7 +1012,7 @@ Real-time face detection WebSocket.
 
 1. **Clone and navigate**:
 ```bash
-cd "voice assistant/backend"
+cd voice-assistant/backend
 ```
 
 2. **Create virtual environment**:
@@ -1075,7 +1075,7 @@ uvicorn main:app --reload
 
 1. **Navigate to frontend**:
 ```bash
-cd "../frontend "
+cd "../frontend"
 ```
 
 2. **Install dependencies**:

@@ -112,7 +112,7 @@ workflow.add_conditional_edges("check_quality", should_retranscribe, {
 ### Project Structure
 
 ```
-voice assistant/backend/app/workflows/
+voice-assistant/backend/app/workflows/
 ├── interview_pipeline.py      # Main workflow definition
 ├── state.py                    # State schema (TypedDict)
 ├── nodes/                      # Individual processing nodes

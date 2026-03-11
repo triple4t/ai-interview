@@ -8,7 +8,7 @@ import sys
 import os
 
 # Add the backend directory to the path
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), 'voice assistant/backend'))
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), 'voice-assistant/backend'))
 
 from app.db.database import SessionLocal
 from app.models.admin import AdminUser
